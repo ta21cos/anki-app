@@ -4,9 +4,15 @@ import { useState, use } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/db";
-import { ArrowLeft, Trash2, Check } from "lucide-react";
+import { ArrowLeft, Trash2, Check, Pencil, X, Plus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+
+interface EditingCard {
+  id: string | null;
+  front: string;
+  back: string;
+}
 
 export default function DeckEditPage({
   params,
@@ -28,6 +34,8 @@ export default function DeckEditPage({
   const [name, setName] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
+  const [editingCard, setEditingCard] = useState<EditingCard | null>(null);
+  const [savingCard, setSavingCard] = useState(false);
 
   const deck = deckResult === undefined ? undefined : deckResult;
   const displayName = name ?? deck?.name ?? "";
@@ -44,6 +52,49 @@ export default function DeckEditPage({
     setDeletingCardId(cardId);
     await db.cards.delete(cardId);
     setDeletingCardId(null);
+  };
+
+  const handleEditCard = (card: {
+    id: string;
+    front: string;
+    back: string;
+  }) => {
+    setEditingCard({ id: card.id, front: card.front, back: card.back });
+  };
+
+  const handleAddCard = () => {
+    setEditingCard({ id: null, front: "", back: "" });
+  };
+
+  const handleSaveCard = async () => {
+    if (!editingCard || !editingCard.front.trim() || !editingCard.back.trim())
+      return;
+    setSavingCard(true);
+
+    if (editingCard.id) {
+      await db.cards.update(editingCard.id, {
+        front: editingCard.front.trim(),
+        back: editingCard.back.trim(),
+      });
+    } else {
+      await db.cards.add({
+        id: crypto.randomUUID(),
+        deckId,
+        front: editingCard.front.trim(),
+        back: editingCard.back.trim(),
+        due: Date.now(),
+        stability: 0,
+        difficulty: 0,
+        reps: 0,
+        lapses: 0,
+        state: 0,
+        lastReview: null,
+        createdAt: Date.now(),
+      });
+    }
+
+    setSavingCard(false);
+    setEditingCard(null);
   };
 
   if (deckResult === undefined || cards === undefined) {
@@ -108,37 +159,72 @@ export default function DeckEditPage({
           <h2 className="text-sm font-medium">
             カード一覧（{cards.length} 枚）
           </h2>
+          <Button size="xs" variant="outline" onClick={handleAddCard}>
+            <Plus className="size-3.5" />
+            追加
+          </Button>
         </div>
 
-        {cards.length === 0 ? (
+        {editingCard && editingCard.id === null && (
+          <CardEditForm
+            editingCard={editingCard}
+            setEditingCard={setEditingCard}
+            onSave={handleSaveCard}
+            onCancel={() => setEditingCard(null)}
+            saving={savingCard}
+            isNew
+          />
+        )}
+
+        {cards.length === 0 && !editingCard ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             カードがありません
           </p>
         ) : (
           <div className="space-y-2">
-            {cards.map((card) => (
-              <div
-                key={card.id}
-                className="flex items-start gap-3 rounded-lg border p-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
-                    {stripHtml(card.front)}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {stripHtml(card.back)}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleDeleteCard(card.id)}
-                  disabled={deletingCardId === card.id}
-                  className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-error-muted hover:text-error disabled:opacity-50"
-                  aria-label="カードを削除"
+            {cards.map((card) =>
+              editingCard?.id === card.id ? (
+                <CardEditForm
+                  key={card.id}
+                  editingCard={editingCard}
+                  setEditingCard={setEditingCard}
+                  onSave={handleSaveCard}
+                  onCancel={() => setEditingCard(null)}
+                  saving={savingCard}
+                />
+              ) : (
+                <div
+                  key={card.id}
+                  className="flex items-start gap-3 rounded-lg border p-3"
                 >
-                  <Trash2 className="size-4" />
-                </button>
-              </div>
-            ))}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {stripHtml(card.front)}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {stripHtml(card.back)}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <button
+                      onClick={() => handleEditCard(card)}
+                      className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      aria-label="カードを編集"
+                    >
+                      <Pencil className="size-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCard(card.id)}
+                      disabled={deletingCardId === card.id}
+                      className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-error-muted hover:text-error disabled:opacity-50"
+                      aria-label="カードを削除"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                </div>
+              ),
+            )}
           </div>
         )}
       </section>
@@ -157,6 +243,66 @@ export default function DeckEditPage({
         >
           <Trash2 className="size-4" />
           デッキを削除
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function CardEditForm({
+  editingCard,
+  setEditingCard,
+  onSave,
+  onCancel,
+  saving,
+  isNew,
+}: {
+  editingCard: EditingCard;
+  setEditingCard: (card: EditingCard) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  saving: boolean;
+  isNew?: boolean;
+}) {
+  const canSave = editingCard.front.trim() && editingCard.back.trim();
+
+  return (
+    <div className="rounded-lg border border-ring/50 bg-accent/30 p-3">
+      <div className="mb-2">
+        <label className="mb-0.5 block text-xs font-medium text-muted-foreground">
+          表面
+        </label>
+        <textarea
+          value={editingCard.front}
+          onChange={(e) =>
+            setEditingCard({ ...editingCard, front: e.target.value })
+          }
+          rows={2}
+          className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+          autoFocus
+        />
+      </div>
+      <div className="mb-3">
+        <label className="mb-0.5 block text-xs font-medium text-muted-foreground">
+          裏面
+        </label>
+        <textarea
+          value={editingCard.back}
+          onChange={(e) =>
+            setEditingCard({ ...editingCard, back: e.target.value })
+          }
+          rows={2}
+          className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+        />
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button size="xs" variant="ghost" onClick={onCancel}>
+          <X className="size-3.5" />
+          キャンセル
+        </Button>
+        <Button size="xs" disabled={!canSave || saving} onClick={onSave}>
+          <Check className="size-3.5" />
+          {isNew ? "追加" : "保存"}
         </Button>
       </div>
     </div>
