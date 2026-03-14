@@ -4,7 +4,12 @@ import { db, type Card } from "@/lib/db";
 export { Rating };
 export type { Grade };
 
-const fsrs = new FSRS({});
+const fsrs = new FSRS({
+  request_retention: 0.9,
+  maximum_interval: 365,
+  enable_fuzz: true,
+  enable_short_term: true,
+});
 
 export function getNextReviews(card: Card, now: Date = new Date()) {
   const fsrsCard: FSRSCard = {
