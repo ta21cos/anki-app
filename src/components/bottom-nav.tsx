@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Upload, BarChart3 } from "lucide-react";
+import { BookOpen, Upload, BarChart3, CalendarCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "デッキ", icon: BookOpen },
+  { href: "/daily", label: "今日", icon: CalendarCheck },
   { href: "/import", label: "インポート", icon: Upload },
   { href: "/stats", label: "統計", icon: BarChart3 },
 ];
