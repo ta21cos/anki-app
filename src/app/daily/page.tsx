@@ -33,7 +33,15 @@ export default function DailyPage() {
       db.cards
         .where("due")
         .belowOrEqual(now)
-        .sortBy("due"),
+        .sortBy("due")
+        .then((cards) =>
+          cards.sort((a, b) => {
+            // New cards (state=0) first, then by due date
+            if (a.state === 0 && b.state !== 0) return -1;
+            if (a.state !== 0 && b.state === 0) return 1;
+            return a.due - b.due;
+          }),
+        ),
     [now],
   );
 
