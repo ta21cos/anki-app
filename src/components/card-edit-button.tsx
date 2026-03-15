@@ -1,8 +1,31 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, type RefObject } from "react";
 import { db } from "@/lib/db";
-import { Pencil, X, Check } from "lucide-react";
+import { Pencil, X, Check, Highlighter } from "lucide-react";
+
+function insertMark(
+  ref: RefObject<HTMLTextAreaElement | null>,
+  value: string,
+  setValue: (v: string) => void,
+) {
+  const el = ref.current;
+  if (!el) return;
+  const start = el.selectionStart;
+  const end = el.selectionEnd;
+  const selected = value.slice(start, end);
+  const replacement = `<mark>${selected}</mark>`;
+  const next = value.slice(0, start) + replacement + value.slice(end);
+  setValue(next);
+  // Restore cursor after React re-render
+  requestAnimationFrame(() => {
+    const cursorPos = selected
+      ? start + replacement.length
+      : start + "<mark>".length;
+    el.setSelectionRange(cursorPos, cursorPos);
+    el.focus();
+  });
+}
 
 interface CardEditDialogProps {
   cardId: string;
@@ -16,12 +39,13 @@ function CardEditDialog({ cardId, front, back, onClose }: CardEditDialogProps) {
   const [editBack, setEditBack] = useState(back);
   const [saving, setSaving] = useState(false);
   const frontRef = useRef<HTMLTextAreaElement>(null);
+  const backRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     frontRef.current?.focus();
   }, []);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (saving) return;
     setSaving(true);
     try {
@@ -33,7 +57,7 @@ function CardEditDialog({ cardId, front, back, onClose }: CardEditDialogProps) {
     } finally {
       setSaving(false);
     }
-  };
+  }, [saving, cardId, editFront, editBack, onClose]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
@@ -48,7 +72,18 @@ function CardEditDialog({ cardId, front, back, onClose }: CardEditDialogProps) {
           </button>
         </div>
 
-        <label className="mb-1 block text-sm text-muted-foreground">表面</label>
+        <div className="mb-1 flex items-center justify-between">
+          <label className="text-sm text-muted-foreground">表面</label>
+          <button
+            type="button"
+            onClick={() => insertMark(frontRef, editFront, setEditFront)}
+            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            title="選択範囲をマーカーで囲む"
+          >
+            <Highlighter className="size-3" />
+            mark
+          </button>
+        </div>
         <textarea
           ref={frontRef}
           value={editFront}
@@ -57,8 +92,20 @@ function CardEditDialog({ cardId, front, back, onClose }: CardEditDialogProps) {
           className="mb-3 w-full resize-none rounded-lg border bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         />
 
-        <label className="mb-1 block text-sm text-muted-foreground">裏面</label>
+        <div className="mb-1 flex items-center justify-between">
+          <label className="text-sm text-muted-foreground">裏面</label>
+          <button
+            type="button"
+            onClick={() => insertMark(backRef, editBack, setEditBack)}
+            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            title="選択範囲をマーカーで囲む"
+          >
+            <Highlighter className="size-3" />
+            mark
+          </button>
+        </div>
         <textarea
+          ref={backRef}
           value={editBack}
           onChange={(e) => setEditBack(e.target.value)}
           rows={3}
