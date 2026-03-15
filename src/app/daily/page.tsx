@@ -11,6 +11,7 @@ import {
   type Grade,
 } from "@/lib/fsrs";
 import { CardViewer } from "@/components/card-viewer";
+import { CardEditButton } from "@/components/card-edit-button";
 import { RatingButtons } from "@/components/rating-buttons";
 import { CheckCircle2, Minus, Plus } from "lucide-react";
 
@@ -155,12 +156,23 @@ export default function DailyPage() {
         onShowAnswer={() => setShowAnswer(true)}
       />
 
-      {showAnswer && intervals && (
-        <RatingButtons
-          intervals={intervals}
-          onRate={handleRate}
-          disabled={isRating}
-        />
+      {showAnswer && (
+        <>
+          <div className="mt-3 flex justify-end">
+            <CardEditButton
+              cardId={currentCard.id}
+              front={currentCard.front}
+              back={currentCard.back}
+            />
+          </div>
+          {intervals && (
+            <RatingButtons
+              intervals={intervals}
+              onRate={handleRate}
+              disabled={isRating}
+            />
+          )}
+        </>
       )}
     </div>
   );

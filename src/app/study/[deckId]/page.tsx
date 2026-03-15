@@ -13,6 +13,7 @@ import {
 } from "@/lib/fsrs";
 import { CardViewer } from "@/components/card-viewer";
 import { RatingButtons } from "@/components/rating-buttons";
+import { CardEditButton } from "@/components/card-edit-button";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
@@ -123,12 +124,23 @@ export default function StudyPage({
         onShowAnswer={() => setShowAnswer(true)}
       />
 
-      {showAnswer && intervals && (
-        <RatingButtons
-          intervals={intervals}
-          onRate={handleRate}
-          disabled={isRating}
-        />
+      {showAnswer && (
+        <>
+          <div className="mt-3 flex justify-end">
+            <CardEditButton
+              cardId={currentCard.id}
+              front={currentCard.front}
+              back={currentCard.back}
+            />
+          </div>
+          {intervals && (
+            <RatingButtons
+              intervals={intervals}
+              onRate={handleRate}
+              disabled={isRating}
+            />
+          )}
+        </>
       )}
     </div>
   );
