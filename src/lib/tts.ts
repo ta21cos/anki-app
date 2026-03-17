@@ -2,7 +2,7 @@ export function stripHtmlToPlainText(html: string): string {
   const div = document.createElement("div");
   div.innerHTML = html;
 
-  div.querySelectorAll("mark, style, script").forEach((el) => el.remove());
+  div.querySelectorAll("style, script").forEach((el) => el.remove());
 
   return (div.textContent ?? "").trim();
 }
