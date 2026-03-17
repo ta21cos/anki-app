@@ -20,6 +20,14 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
+const SPEED_OPTIONS = [
+  { label: "0.7x", rate: 0.7 },
+  { label: "0.85x", rate: 0.85 },
+  { label: "1x", rate: 1.0 },
+  { label: "1.2x", rate: 1.2 },
+  { label: "1.5x", rate: 1.5 },
+];
+
 export default function ListenPage({
   params,
 }: {
@@ -30,9 +38,11 @@ export default function ListenPage({
   const [isPlaying, setIsPlaying] = useState(false);
   const [autoMode, setAutoMode] = useState(false);
   const [delay, setDelay] = useState(2);
+  const [speedIndex, setSpeedIndex] = useState(2);
 
   const autoModeRef = useRef(autoMode);
   const delayRef = useRef(delay);
+  const speedRef = useRef(speedIndex);
   const currentIndexRef = useRef(currentIndex);
   const cardsRef = useRef<Card[] | null>(null);
 
@@ -42,6 +52,9 @@ export default function ListenPage({
   useEffect(() => {
     delayRef.current = delay;
   }, [delay]);
+  useEffect(() => {
+    speedRef.current = speedIndex;
+  }, [speedIndex]);
   useEffect(() => {
     currentIndexRef.current = currentIndex;
   }, [currentIndex]);
@@ -95,6 +108,7 @@ export default function ListenPage({
 
     setIsPlaying(true);
     speak(text, {
+      rate: SPEED_OPTIONS[speedRef.current].rate,
       onEnd: () => {
         if (
           autoModeRef.current &&
@@ -258,6 +272,23 @@ export default function ListenPage({
           >
             <SkipForward className="size-5" />
           </Button>
+        </div>
+
+        <div className="flex items-center justify-center gap-1">
+          {SPEED_OPTIONS.map((opt, i) => (
+            <button
+              key={opt.label}
+              onClick={() => setSpeedIndex(i)}
+              className={cn(
+                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                i === speedIndex
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent",
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
 
         <div className="flex flex-col items-center gap-3 rounded-lg border p-4">
