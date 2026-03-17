@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, Volume2 } from "lucide-react";
 import { db } from "@/lib/db";
 
 interface DeckMenuProps {
@@ -86,6 +86,18 @@ export function DeckMenu({ deckId, deckName }: DeckMenuProps) {
             </div>
           ) : (
             <>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setOpen(false);
+                  router.push(`/listen/${deckId}`);
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-sm transition-colors hover:bg-accent"
+              >
+                <Volume2 className="size-4" />
+                読み上げ
+              </button>
               <button
                 onClick={(e) => {
                   e.preventDefault();
