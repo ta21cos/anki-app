@@ -1,16 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
-import Dexie from "dexie";
-import { db } from "@/lib/db";
+import { useDecks, useDeckCardCount, useDeckDueCount } from "@/lib/api/hooks";
 import { BookOpen } from "lucide-react";
 import Link from "next/link";
 import { DeckMergeDialog } from "@/components/deck-merge-dialog";
 import { DeckMenu } from "@/components/deck-menu";
 
 export default function HomePage() {
-  const decks = useLiveQuery(() => db.decks.toArray());
+  const { data: decks } = useDecks();
 
   if (decks === undefined) {
     return (
@@ -48,20 +46,12 @@ export default function HomePage() {
 }
 
 function DeckItem({ deck }: { deck: { id: string; name: string } }) {
-  const cardCount = useLiveQuery(
-    () => db.cards.where("deckId").equals(deck.id).count(),
-    [deck.id],
-  );
+  const { data: cardCountData } = useDeckCardCount(deck.id);
+  const cardCount = cardCountData?.count ?? 0;
 
   const [now] = useState(() => Date.now());
-  const dueCount = useLiveQuery(
-    () =>
-      db.cards
-        .where("[deckId+due]")
-        .between([deck.id, Dexie.minKey], [deck.id, now], true, true)
-        .count(),
-    [deck.id, now],
-  );
+  const { data: dueCountData } = useDeckDueCount(deck.id, now);
+  const dueCount = dueCountData?.count ?? 0;
 
   return (
     <div className="flex items-center rounded-lg border transition-colors hover:bg-accent">
@@ -71,10 +61,10 @@ function DeckItem({ deck }: { deck: { id: string; name: string } }) {
       >
         <div className="min-w-0">
           <h2 className="font-medium">{deck.name}</h2>
-          <p className="text-sm text-muted-foreground">{cardCount ?? 0} 枚</p>
+          <p className="text-sm text-muted-foreground">{cardCount} 枚</p>
         </div>
         <div className="flex items-center gap-2">
-          {(dueCount ?? 0) > 0 && (
+          {dueCount > 0 && (
             <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-primary-foreground">
               {dueCount}
             </span>

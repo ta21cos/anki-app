@@ -1,7 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, type RefObject } from "react";
-import { db } from "@/lib/db";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  type RefObject,
+} from "react";
+import { updateCard } from "@/lib/api/mutations";
 import { Pencil, X, Check, Highlighter } from "lucide-react";
 
 function insertMark(
@@ -17,7 +23,6 @@ function insertMark(
   const replacement = `<mark>${selected}</mark>`;
   const next = value.slice(0, start) + replacement + value.slice(end);
   setValue(next);
-  // Restore cursor after React re-render
   requestAnimationFrame(() => {
     const cursorPos = selected
       ? start + replacement.length
@@ -49,7 +54,7 @@ function CardEditDialog({ cardId, front, back, onClose }: CardEditDialogProps) {
     if (saving) return;
     setSaving(true);
     try {
-      await db.cards.update(cardId, {
+      await updateCard(cardId, {
         front: editFront.trim(),
         back: editBack.trim(),
       });

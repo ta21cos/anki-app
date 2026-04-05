@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, use } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db, type Card } from "@/lib/db";
+import { useDeck, useDeckCards, type Card } from "@/lib/api/hooks";
 import { stripHtmlToPlainText, speak, stopSpeaking } from "@/lib/tts";
 import { CardViewer } from "@/components/card-viewer";
 import {
@@ -59,15 +58,8 @@ export default function ListenPage({
     currentIndexRef.current = currentIndex;
   }, [currentIndex]);
 
-  const deck = useLiveQuery(
-    () => db.decks.get(deckId).then((d) => d ?? null),
-    [deckId],
-  );
-
-  const cards = useLiveQuery(
-    () => db.cards.where("deckId").equals(deckId).toArray(),
-    [deckId],
-  );
+  const { data: deck, isLoading: deckLoading } = useDeck(deckId);
+  const { data: cards, isLoading: cardsLoading } = useDeckCards(deckId);
 
   useEffect(() => {
     cardsRef.current = cards ?? null;
@@ -183,7 +175,7 @@ export default function ListenPage({
     setAutoMode((prev) => !prev);
   }, []);
 
-  if (deck === undefined || cards === undefined) {
+  if (deckLoading || cardsLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="text-muted-foreground">読み込み中...</div>

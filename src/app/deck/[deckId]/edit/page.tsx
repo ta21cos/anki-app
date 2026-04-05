@@ -1,9 +1,15 @@
 "use client";
 
 import { useState, use } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
+import { useDeck, useDeckCards } from "@/lib/api/hooks";
+import {
+  updateDeckName,
+  updateCard,
+  addCard,
+  deleteCard,
+  deleteDeck,
+} from "@/lib/api/mutations";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/db";
 import { ArrowLeft, Trash2, Check, Pencil, X, Plus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -22,14 +28,8 @@ export default function DeckEditPage({
   const { deckId } = use(params);
   const router = useRouter();
 
-  const deckResult = useLiveQuery(
-    () => db.decks.get(deckId).then((d) => d ?? null),
-    [deckId],
-  );
-  const cards = useLiveQuery(
-    () => db.cards.where("deckId").equals(deckId).toArray(),
-    [deckId],
-  );
+  const { data: deck, isLoading: deckLoading } = useDeck(deckId);
+  const { data: cards, isLoading: cardsLoading } = useDeckCards(deckId);
 
   const [name, setName] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -37,20 +37,19 @@ export default function DeckEditPage({
   const [editingCard, setEditingCard] = useState<EditingCard | null>(null);
   const [savingCard, setSavingCard] = useState(false);
 
-  const deck = deckResult === undefined ? undefined : deckResult;
   const displayName = name ?? deck?.name ?? "";
 
   const handleSaveName = async () => {
     if (!deck || !displayName.trim() || displayName === deck.name) return;
     setSaving(true);
-    await db.decks.update(deckId, { name: displayName.trim() });
+    await updateDeckName(deckId, displayName.trim());
     setSaving(false);
     setName(null);
   };
 
   const handleDeleteCard = async (cardId: string) => {
     setDeletingCardId(cardId);
-    await db.cards.delete(cardId);
+    await deleteCard(cardId);
     setDeletingCardId(null);
   };
 
@@ -72,24 +71,24 @@ export default function DeckEditPage({
     setSavingCard(true);
 
     if (editingCard.id) {
-      await db.cards.update(editingCard.id, {
+      await updateCard(editingCard.id, {
         front: editingCard.front.trim(),
         back: editingCard.back.trim(),
       });
     } else {
-      await db.cards.add({
+      const now = Date.now();
+      await addCard(deckId, {
         id: crypto.randomUUID(),
-        deckId,
         front: editingCard.front.trim(),
         back: editingCard.back.trim(),
-        due: Date.now(),
+        due: now,
         stability: 0,
         difficulty: 0,
         reps: 0,
         lapses: 0,
         state: 0,
         lastReview: null,
-        createdAt: Date.now(),
+        createdAt: now,
       });
     }
 
@@ -97,7 +96,7 @@ export default function DeckEditPage({
     setEditingCard(null);
   };
 
-  if (deckResult === undefined || cards === undefined) {
+  if (deckLoading || cardsLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="text-muted-foreground">読み込み中...</div>
@@ -157,7 +156,7 @@ export default function DeckEditPage({
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-medium">
-            カード一覧（{cards.length} 枚）
+            カード一覧（{cards?.length ?? 0} 枚）
           </h2>
           <Button size="xs" variant="outline" onClick={handleAddCard}>
             <Plus className="size-3.5" />
@@ -176,13 +175,13 @@ export default function DeckEditPage({
           />
         )}
 
-        {cards.length === 0 && !editingCard ? (
+        {(!cards || cards.length === 0) && !editingCard ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             カードがありません
           </p>
         ) : (
           <div className="space-y-2">
-            {cards.map((card) =>
+            {cards?.map((card) =>
               editingCard?.id === card.id ? (
                 <CardEditForm
                   key={card.id}
@@ -234,10 +233,7 @@ export default function DeckEditPage({
           variant="destructive"
           className="w-full"
           onClick={async () => {
-            await db.transaction("rw", db.decks, db.cards, async () => {
-              await db.cards.where("deckId").equals(deckId).delete();
-              await db.decks.delete(deckId);
-            });
+            await deleteDeck(deckId);
             router.push("/");
           }}
         >

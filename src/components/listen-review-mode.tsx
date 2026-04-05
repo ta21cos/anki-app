@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { type Card } from "@/lib/db";
+import type { Card } from "@/lib/api/hooks";
 import {
   getNextReviews,
-  rateCard,
+  computeNextCard,
   formatInterval,
   Rating,
   type Grade,
 } from "@/lib/fsrs";
+import { rateCardApi } from "@/lib/api/mutations";
 import { stripHtmlToPlainText, speak, stopSpeaking } from "@/lib/tts";
 import { CardViewer } from "@/components/card-viewer";
 import { RatingButtons } from "@/components/rating-buttons";
@@ -98,7 +99,8 @@ export function ListenReviewMode({
       if (!currentCard || isRating) return;
       setIsRating(true);
       try {
-        await rateCard(currentCard, grade);
+        const fields = computeNextCard(currentCard, grade);
+        await rateCardApi(currentCard.id, fields);
         stopSpeaking();
         const newCount = reviewedCount + 1;
         setReviewedCount(newCount);
@@ -203,7 +205,7 @@ export function ListenReviewMode({
 
         {!canRate && (
           <p className="text-center text-xs text-muted-foreground">
-            再生ボタンを押すと評価できます
+            再生ボタン��押すと評価できます
           </p>
         )}
       </div>

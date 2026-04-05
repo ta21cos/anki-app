@@ -1,4 +1,4 @@
-import { db, type Card, type Deck } from "@/lib/db";
+import { importDeck } from "@/lib/api/mutations";
 import { parseTxt, type ParsedCard } from "./txt";
 import { parseCsv } from "./csv";
 import { parseApkg } from "./apkg";
@@ -37,13 +37,8 @@ export async function importFile(
 
   const now = Date.now();
   const deckId = crypto.randomUUID();
-  const deck: Deck = {
-    id: deckId,
-    name: deckName,
-    createdAt: now,
-  };
 
-  const cards: Card[] = parsedCards.map((card) => ({
+  const cards = parsedCards.map((card) => ({
     id: crypto.randomUUID(),
     deckId,
     front: card.front,
@@ -58,10 +53,7 @@ export async function importFile(
     createdAt: now,
   }));
 
-  await db.transaction("rw", db.decks, db.cards, async () => {
-    await db.decks.add(deck);
-    await db.cards.bulkAdd(cards);
-  });
+  await importDeck({ id: deckId, name: deckName, createdAt: now }, cards);
 
   return {
     deckName,

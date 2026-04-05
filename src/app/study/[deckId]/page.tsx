@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useCallback, use } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
-import Dexie from "dexie";
-import { db } from "@/lib/db";
+import { useDeck, useDueCardsByDeck } from "@/lib/api/hooks";
+import { rateCardApi } from "@/lib/api/mutations";
 import {
   getNextReviews,
-  rateCard,
+  computeNextCard,
   formatInterval,
   Rating,
   type Grade,
@@ -26,20 +25,12 @@ export default function StudyPage({
   const [showAnswer, setShowAnswer] = useState(false);
   const [isRating, setIsRating] = useState(false);
 
-  const deckResult = useLiveQuery(
-    () => db.decks.get(deckId).then((d) => d ?? null),
-    [deckId],
-  );
-  const deck = deckResult === undefined ? undefined : deckResult;
+  const { data: deck, isLoading: deckLoading } = useDeck(deckId);
 
   const [now, setNow] = useState(() => Date.now());
-  const dueCards = useLiveQuery(
-    () =>
-      db.cards
-        .where("[deckId+due]")
-        .between([deckId, Dexie.minKey], [deckId, now], true, true)
-        .sortBy("due"),
-    [deckId, now],
+  const { data: dueCards, isLoading: cardsLoading } = useDueCardsByDeck(
+    deckId,
+    now,
   );
 
   const currentCard = dueCards?.[0] ?? null;
@@ -61,7 +52,8 @@ export default function StudyPage({
       if (!currentCard || isRating) return;
       setIsRating(true);
       try {
-        await rateCard(currentCard, grade);
+        const fields = computeNextCard(currentCard, grade);
+        await rateCardApi(currentCard.id, fields);
         setShowAnswer(false);
         setNow(Date.now());
       } finally {
@@ -71,7 +63,7 @@ export default function StudyPage({
     [currentCard, isRating],
   );
 
-  if (deckResult === undefined || dueCards === undefined) {
+  if (deckLoading || cardsLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="text-muted-foreground">読み込み中...</div>
@@ -113,7 +105,7 @@ export default function StudyPage({
         </Link>
         <h1 className="text-lg font-semibold">{deck.name}</h1>
         <span className="ml-auto text-sm text-muted-foreground">
-          残り {dueCards.length} 枚
+          残り {dueCards!.length} 枚
         </span>
       </div>
 

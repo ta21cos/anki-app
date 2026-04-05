@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
-import { mergeDecks } from "@/lib/deck-merge";
+import { useDecks } from "@/lib/api/hooks";
+import { mergeDecks } from "@/lib/api/mutations";
 import { Button } from "@/components/ui/button";
 import { Merge, X, Check } from "lucide-react";
 
@@ -19,7 +18,7 @@ export function DeckMergeDialog() {
   const [targetId, setTargetId] = useState<string>("");
   const [sourceIds, setSourceIds] = useState<Set<string>>(new Set());
 
-  const decks = useLiveQuery(() => db.decks.toArray());
+  const { data: decks } = useDecks();
 
   const toggleSource = (id: string) => {
     setSourceIds((prev) => {
@@ -37,8 +36,8 @@ export function DeckMergeDialog() {
     if (!targetId || sourceIds.size === 0) return;
     setState({ status: "merging" });
     try {
-      const count = await mergeDecks(targetId, [...sourceIds]);
-      setState({ status: "success", count });
+      await mergeDecks(targetId, [...sourceIds]);
+      setState({ status: "success", count: sourceIds.size });
       setTargetId("");
       setSourceIds(new Set());
     } catch (err) {
@@ -68,7 +67,7 @@ export function DeckMergeDialog() {
       <div className="rounded-lg border border-success-border bg-success-muted p-4">
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-success-muted-foreground">
-            {state.count} 枚のカードをマージしました
+            マージが完了しました
           </p>
           <button onClick={() => setState({ status: "idle" })}>
             <X className="size-4 text-success" />

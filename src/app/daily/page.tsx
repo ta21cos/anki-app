@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
+import { useDecks, useDueCards } from "@/lib/api/hooks";
+import { rateCardApi } from "@/lib/api/mutations";
 import {
   getNextReviews,
-  rateCard,
+  computeNextCard,
   formatInterval,
   Rating,
   type Grade,
@@ -43,23 +43,16 @@ export default function DailyPage() {
 
   const [now, setNow] = useState(() => Date.now());
 
-  const dueCards = useLiveQuery(
-    () =>
-      db.cards
-        .where("due")
-        .belowOrEqual(now)
-        .sortBy("due")
-        .then((cards) =>
-          cards.sort((a, b) => {
-            if (a.state === 0 && b.state !== 0) return -1;
-            if (a.state !== 0 && b.state === 0) return 1;
-            return a.due - b.due;
-          }),
-        ),
-    [now],
-  );
+  const { data: rawDueCards } = useDueCards(now);
+  const { data: decks } = useDecks();
 
-  const decks = useLiveQuery(() => db.decks.toArray());
+  const dueCards = rawDueCards
+    ? [...rawDueCards].sort((a, b) => {
+        if (a.state === 0 && b.state !== 0) return -1;
+        if (a.state !== 0 && b.state === 0) return 1;
+        return a.due - b.due;
+      })
+    : undefined;
 
   const deckNameMap = decks
     ? Object.fromEntries(decks.map((d) => [d.id, d.name]))
@@ -86,7 +79,8 @@ export default function DailyPage() {
       if (!currentCard || isRating) return;
       setIsRating(true);
       try {
-        await rateCard(currentCard, grade);
+        const fields = computeNextCard(currentCard, grade);
+        await rateCardApi(currentCard.id, fields);
         setShowAnswer(false);
         setReviewedCount((c) => c + 1);
         setNow(Date.now());

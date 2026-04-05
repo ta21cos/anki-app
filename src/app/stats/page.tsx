@@ -1,51 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/lib/db";
-import { BarChart3, BookOpen, CheckCircle2, Clock } from "lucide-react";
+import { useStats } from "@/lib/api/hooks";
+import { getDeviceToken } from "@/lib/device-token";
+import {
+  BarChart3,
+  BookOpen,
+  CheckCircle2,
+  Clock,
+  Copy,
+  Check,
+} from "lucide-react";
 
 export default function StatsPage() {
-  const [now] = useState(() => Date.now());
-  const [todayStartMs] = useState(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d.getTime();
-  });
+  const { data: stats } = useStats();
 
-  const totalCards = useLiveQuery(() => db.cards.count());
-
-  const dueCards = useLiveQuery(
-    () => db.cards.where("due").belowOrEqual(now).count(),
-    [now],
-  );
-
-  const reviewedToday = useLiveQuery(async () => {
-    const all = await db.cards.toArray();
-    return all.filter(
-      (card) => card.lastReview !== null && card.lastReview >= todayStartMs,
-    ).length;
-  }, [todayStartMs]);
-
-  const deckCount = useLiveQuery(() => db.decks.count());
-
-  const newCards = useLiveQuery(() =>
-    db.cards.where("state").equals(0).count(),
-  );
-
-  const learningCards = useLiveQuery(() =>
-    db.cards.where("state").anyOf([1, 3]).count(),
-  );
-
-  const reviewCards = useLiveQuery(() =>
-    db.cards.where("state").equals(2).count(),
-  );
-
-  if (
-    totalCards === undefined ||
-    dueCards === undefined ||
-    reviewedToday === undefined
-  ) {
+  if (stats === undefined) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="text-muted-foreground">読み込み中...</div>
@@ -61,22 +31,22 @@ export default function StatsPage() {
         <StatCard
           icon={<CheckCircle2 className="size-5 text-stat-today" />}
           label="今日の復習"
-          value={reviewedToday}
+          value={stats.reviewedToday}
         />
         <StatCard
           icon={<Clock className="size-5 text-stat-due" />}
           label="復習待ち"
-          value={dueCards}
+          value={stats.dueCards}
         />
         <StatCard
           icon={<BookOpen className="size-5 text-stat-total" />}
           label="総カード数"
-          value={totalCards}
+          value={stats.totalCards}
         />
         <StatCard
           icon={<BarChart3 className="size-5 text-stat-deck" />}
           label="デッキ数"
-          value={deckCount ?? 0}
+          value={stats.deckCount}
         />
       </div>
 
@@ -85,24 +55,96 @@ export default function StatsPage() {
         <div className="space-y-2">
           <StateBar
             label="新規"
-            count={newCards ?? 0}
-            total={totalCards}
+            count={stats.newCards}
+            total={stats.totalCards}
             color="bg-state-new"
           />
           <StateBar
             label="学習中"
-            count={learningCards ?? 0}
-            total={totalCards}
+            count={stats.learningCards}
+            total={stats.totalCards}
             color="bg-state-learning"
           />
           <StateBar
             label="復習"
-            count={reviewCards ?? 0}
-            total={totalCards}
+            count={stats.reviewCards}
+            total={stats.totalCards}
             color="bg-state-review"
           />
         </div>
       </div>
+
+      <DeviceIdSection />
+    </div>
+  );
+}
+
+function DeviceIdSection() {
+  const [copied, setCopied] = useState(false);
+  const [inputValue, setInputValue] = useState("");
+  const [showInput, setShowInput] = useState(false);
+  const deviceId = getDeviceToken();
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(deviceId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleApply = () => {
+    const trimmed = inputValue.trim();
+    if (!trimmed) return;
+    localStorage.setItem("device-token", trimmed);
+    window.location.reload();
+  };
+
+  return (
+    <div className="mt-8 rounded-lg border p-4">
+      <h2 className="mb-2 text-sm font-semibold">デバイス ID</h2>
+      <p className="mb-3 text-xs text-muted-foreground">
+        他の端末���この ID を��力すると、同じデータにアクセスできます
+      </p>
+      <div className="flex items-center gap-2">
+        <code className="flex-1 truncate rounded bg-muted px-2 py-1.5 text-xs">
+          {deviceId}
+        </code>
+        <button
+          onClick={handleCopy}
+          className="shrink-0 rounded-md border p-1.5 text-muted-foreground transition-colors hover:bg-accent"
+        >
+          {copied ? (
+            <Check className="size-4 text-green-500" />
+          ) : (
+            <Copy className="size-4" />
+          )}
+        </button>
+      </div>
+
+      {!showInput ? (
+        <button
+          onClick={() => setShowInput(true)}
+          className="mt-3 text-xs text-muted-foreground underline"
+        >
+          別の端末の ID を入力する
+        </button>
+      ) : (
+        <div className="mt-3 flex gap-2">
+          <input
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder="デバイス ID を貼り付け"
+            className="flex-1 rounded-md border bg-background px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring"
+          />
+          <button
+            onClick={handleApply}
+            disabled={!inputValue.trim()}
+            className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground disabled:opacity-50"
+          >
+            適用
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { Zen_Maru_Gothic } from "next/font/google";
 import { Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { BottomNav } from "@/components/bottom-nav";
+import { SWRProvider } from "@/lib/api/swr-provider";
 
 const zenMaru = Zen_Maru_Gothic({
   variable: "--font-zen-maru",
@@ -47,8 +48,10 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className={`${zenMaru.variable} ${geistMono.variable} antialiased`}>
-        <main className="pb-16">{children}</main>
-        <BottomNav />
+        <SWRProvider>
+          <main className="pb-16">{children}</main>
+          <BottomNav />
+        </SWRProvider>
       </body>
     </html>
   );

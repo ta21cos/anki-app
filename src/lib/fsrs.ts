@@ -1,5 +1,5 @@
 import { FSRS, Rating, type Card as FSRSCard, type Grade } from "ts-fsrs";
-import { db, type Card } from "@/lib/db";
+import type { Card } from "@/lib/api/hooks";
 
 export { Rating };
 export type { Grade };
@@ -46,20 +46,20 @@ export function getNextReviews(card: Card, now: Date = new Date()) {
   };
 }
 
-export async function rateCard(card: Card, grade: Grade): Promise<void> {
+export function computeNextCard(card: Card, grade: Grade) {
   const now = new Date();
   const reviews = getNextReviews(card, now);
   const next = reviews[grade].card;
 
-  await db.cards.update(card.id, {
+  return {
     due: next.due.getTime(),
     stability: next.stability,
     difficulty: next.difficulty,
     reps: next.reps,
     lapses: next.lapses,
     state: next.state,
-    lastReview: now.getTime(),
-  });
+    last_review: now.getTime(),
+  };
 }
 
 export function formatInterval(card: FSRSCard): string {

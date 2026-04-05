@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MoreVertical, Pencil, Trash2, Volume2 } from "lucide-react";
-import { db } from "@/lib/db";
+import { deleteDeck } from "@/lib/api/mutations";
 
 interface DeckMenuProps {
   deckId: string;
@@ -31,10 +31,7 @@ export function DeckMenu({ deckId, deckName }: DeckMenuProps) {
   }, [open]);
 
   const handleDelete = async () => {
-    await db.transaction("rw", db.decks, db.cards, async () => {
-      await db.cards.where("deckId").equals(deckId).delete();
-      await db.decks.delete(deckId);
-    });
+    await deleteDeck(deckId);
     setOpen(false);
     setConfirmDelete(false);
   };
