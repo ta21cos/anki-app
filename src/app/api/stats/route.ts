@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { and, count, eq, gte, inArray, lte } from "drizzle-orm";
-import { db } from "@/lib/server/db";
+import { getDb } from "@/lib/server/db";
 import { cards, decks } from "@/lib/server/schema";
 import { getDeviceId } from "@/lib/server/auth";
 
@@ -12,6 +12,7 @@ export async function GET(request: Request) {
 
   const deviceFilter = eq(cards.deviceId, deviceId);
 
+  const db = getDb();
   const [
     [totalCards],
     [dueCards],

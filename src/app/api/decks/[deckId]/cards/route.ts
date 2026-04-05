@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { and, asc, eq, lte } from "drizzle-orm";
-import { db } from "@/lib/server/db";
+import { getDb } from "@/lib/server/db";
 import { cards } from "@/lib/server/schema";
 import { getDeviceId } from "@/lib/server/auth";
 
@@ -8,6 +8,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ deckId: string }> },
 ) {
+  const db = getDb();
   const deviceId = getDeviceId(request);
   const { deckId } = await params;
   const url = new URL(request.url);
@@ -31,6 +32,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ deckId: string }> },
 ) {
+  const db = getDb();
   const deviceId = getDeviceId(request);
   const { deckId } = await params;
   const body = await request.json();

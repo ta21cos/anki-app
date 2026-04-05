@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
-import { db } from "@/lib/server/db";
+import { getDb } from "@/lib/server/db";
 import { cards, decks } from "@/lib/server/schema";
 import { getDeviceId } from "@/lib/server/auth";
 
 export async function GET(request: Request) {
+  const db = getDb();
   const deviceId = getDeviceId(request);
   const result = await db
     .select()
@@ -14,6 +15,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const db = getDb();
   const deviceId = getDeviceId(request);
   const body = await request.json();
   const { deck, cards: cardList } = body as {

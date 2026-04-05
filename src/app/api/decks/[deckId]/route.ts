@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/server/db";
+import { getDb } from "@/lib/server/db";
 import { cards, decks } from "@/lib/server/schema";
 import { getDeviceId } from "@/lib/server/auth";
 
@@ -8,6 +8,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ deckId: string }> },
 ) {
+  const db = getDb();
   const deviceId = getDeviceId(request);
   const { deckId } = await params;
   const [deck] = await db
@@ -22,6 +23,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ deckId: string }> },
 ) {
+  const db = getDb();
   const deviceId = getDeviceId(request);
   const { deckId } = await params;
   const body = await request.json();
@@ -36,6 +38,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ deckId: string }> },
 ) {
+  const db = getDb();
   const deviceId = getDeviceId(request);
   const { deckId } = await params;
   await db

@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { and, asc, eq, lte } from "drizzle-orm";
-import { db } from "@/lib/server/db";
+import { getDb } from "@/lib/server/db";
 import { cards } from "@/lib/server/schema";
 import { getDeviceId } from "@/lib/server/auth";
 
 export async function GET(request: Request) {
+  const db = getDb();
   const deviceId = getDeviceId(request);
   const url = new URL(request.url);
   const before = url.searchParams.get("before") ?? String(Date.now());
