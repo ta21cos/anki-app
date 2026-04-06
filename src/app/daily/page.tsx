@@ -49,11 +49,11 @@ export default function DailyPage() {
   const [selectedMode, setSelectedMode] = useState<"card" | "audio">("card");
   const [selectedOrder, setSelectedOrder] = useState<Order>("default");
   const [dailyLimit, setDailyLimit] = useState(DEFAULT_DAILY_LIMIT);
-  const [shuffledCardIds, setShuffledCardIds] = useState<string[] | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [isRating, setIsRating] = useState(false);
   const [reviewedCount, setReviewedCount] = useState(0);
   const [completedCount, setCompletedCount] = useState<number | null>(null);
+  const [sessionCardIds, setSessionCardIds] = useState<string[] | null>(null);
 
   const [now, setNow] = useState(() => Date.now());
 
@@ -76,9 +76,9 @@ export default function DailyPage() {
 
   const limitedCards = (() => {
     if (!dueCards) return [];
-    if (shuffledCardIds) {
+    if (sessionCardIds) {
       const cardMap = new Map(dueCards.map((c) => [c.id, c]));
-      return shuffledCardIds
+      return sessionCardIds
         .map((id) => cardMap.get(id))
         .filter((c): c is NonNullable<typeof c> => c != null);
     }
@@ -116,11 +116,9 @@ export default function DailyPage() {
   );
 
   const handleStart = useCallback(() => {
-    if (selectedOrder === "random" && dueCards) {
-      const ids = shuffleArray(dueCards.slice(0, dailyLimit).map((c) => c.id));
-      setShuffledCardIds(ids);
-    } else {
-      setShuffledCardIds(null);
+    if (dueCards) {
+      const ids = dueCards.slice(0, dailyLimit).map((c) => c.id);
+      setSessionCardIds(selectedOrder === "random" ? shuffleArray(ids) : ids);
     }
     setMode(selectedMode);
     setReviewedCount(0);
@@ -136,6 +134,7 @@ export default function DailyPage() {
   const handleBackToStart = useCallback(() => {
     setMode("start");
     setReviewedCount(0);
+    setSessionCardIds(null);
     setNow(Date.now());
   }, []);
 
