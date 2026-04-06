@@ -13,8 +13,17 @@ import {
 import { CardViewer } from "@/components/card-viewer";
 import { RatingButtons } from "@/components/rating-buttons";
 import { CardEditButton } from "@/components/card-edit-button";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Shuffle } from "lucide-react";
 import Link from "next/link";
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 
 export default function StudyPage({
   params,
@@ -24,6 +33,8 @@ export default function StudyPage({
   const { deckId } = use(params);
   const [showAnswer, setShowAnswer] = useState(false);
   const [isRating, setIsRating] = useState(false);
+  const [isShuffled, setIsShuffled] = useState(false);
+  const [shuffledCardIds, setShuffledCardIds] = useState<string[] | null>(null);
 
   const { data: deck, isLoading: deckLoading } = useDeck(deckId);
 
@@ -33,7 +44,18 @@ export default function StudyPage({
     now,
   );
 
-  const currentCard = dueCards?.[0] ?? null;
+  const orderedCards = (() => {
+    if (!dueCards) return undefined;
+    if (shuffledCardIds) {
+      const cardMap = new Map(dueCards.map((c) => [c.id, c]));
+      return shuffledCardIds
+        .map((id) => cardMap.get(id))
+        .filter((c): c is NonNullable<typeof c> => c != null);
+    }
+    return dueCards;
+  })();
+
+  const currentCard = orderedCards?.[0] ?? null;
 
   const intervals = currentCard
     ? (() => {
@@ -46,6 +68,16 @@ export default function StudyPage({
         } as Record<Grade, string>;
       })()
     : null;
+
+  const handleToggleShuffle = useCallback(() => {
+    if (isShuffled) {
+      setShuffledCardIds(null);
+      setIsShuffled(false);
+    } else if (dueCards) {
+      setShuffledCardIds(shuffleArray(dueCards.map((c) => c.id)));
+      setIsShuffled(true);
+    }
+  }, [isShuffled, dueCards]);
 
   const handleRate = useCallback(
     async (grade: Grade) => {
@@ -104,9 +136,18 @@ export default function StudyPage({
           <ArrowLeft className="size-5" />
         </Link>
         <h1 className="text-lg font-semibold">{deck.name}</h1>
-        <span className="ml-auto text-sm text-muted-foreground">
-          残り {dueCards!.length} 枚
-        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={handleToggleShuffle}
+            className={`rounded-md p-1.5 transition-colors ${isShuffled ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+            title={isShuffled ? "期限順に戻す" : "ランダム順"}
+          >
+            <Shuffle className="size-4" />
+          </button>
+          <span className="text-sm text-muted-foreground">
+            残り {orderedCards!.length} 枚
+          </span>
+        </div>
       </div>
 
       <CardViewer
