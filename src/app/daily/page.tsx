@@ -21,6 +21,8 @@ import {
   CreditCard,
   Volume2,
   Play,
+  ArrowDownNarrowWide,
+  Shuffle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -31,11 +33,23 @@ const MAX_LIMIT = 100;
 const STEP = 5;
 
 type Mode = "start" | "card" | "audio";
+type Order = "default" | "random";
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 
 export default function DailyPage() {
   const [mode, setMode] = useState<Mode>("start");
   const [selectedMode, setSelectedMode] = useState<"card" | "audio">("card");
+  const [selectedOrder, setSelectedOrder] = useState<Order>("default");
   const [dailyLimit, setDailyLimit] = useState(DEFAULT_DAILY_LIMIT);
+  const [shuffledCardIds, setShuffledCardIds] = useState<string[] | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [isRating, setIsRating] = useState(false);
   const [reviewedCount, setReviewedCount] = useState(0);
@@ -58,9 +72,19 @@ export default function DailyPage() {
     ? Object.fromEntries(decks.map((d) => [d.id, d.name]))
     : {};
 
-  const limitedCards = dueCards?.slice(0, dailyLimit) ?? [];
-  const currentCard = limitedCards[0] ?? null;
   const totalDue = dueCards?.length ?? 0;
+
+  const limitedCards = (() => {
+    if (!dueCards) return [];
+    if (shuffledCardIds) {
+      const cardMap = new Map(dueCards.map((c) => [c.id, c]));
+      return shuffledCardIds
+        .map((id) => cardMap.get(id))
+        .filter((c): c is NonNullable<typeof c> => c != null);
+    }
+    return dueCards.slice(0, dailyLimit);
+  })();
+  const currentCard = limitedCards[0] ?? null;
 
   const intervals = currentCard
     ? (() => {
@@ -92,11 +116,17 @@ export default function DailyPage() {
   );
 
   const handleStart = useCallback(() => {
+    if (selectedOrder === "random" && dueCards) {
+      const ids = shuffleArray(dueCards.slice(0, dailyLimit).map((c) => c.id));
+      setShuffledCardIds(ids);
+    } else {
+      setShuffledCardIds(null);
+    }
     setMode(selectedMode);
     setReviewedCount(0);
     setCompletedCount(null);
     setNow(Date.now());
-  }, [selectedMode]);
+  }, [selectedMode, selectedOrder, dueCards, dailyLimit]);
 
   const handleAudioComplete = useCallback((count: number) => {
     setCompletedCount(count);
@@ -223,6 +253,70 @@ export default function DailyPage() {
                   )}
                 >
                   音声
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-muted-foreground">
+              カード順
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setSelectedOrder("default")}
+                className={cn(
+                  "flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-colors",
+                  selectedOrder === "default"
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-muted-foreground/30",
+                )}
+              >
+                <ArrowDownNarrowWide
+                  className={cn(
+                    "size-6",
+                    selectedOrder === "default"
+                      ? "text-primary"
+                      : "text-muted-foreground",
+                  )}
+                />
+                <span
+                  className={cn(
+                    "text-sm font-medium",
+                    selectedOrder === "default"
+                      ? "text-primary"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  期限順
+                </span>
+              </button>
+              <button
+                onClick={() => setSelectedOrder("random")}
+                className={cn(
+                  "flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-colors",
+                  selectedOrder === "random"
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-muted-foreground/30",
+                )}
+              >
+                <Shuffle
+                  className={cn(
+                    "size-6",
+                    selectedOrder === "random"
+                      ? "text-primary"
+                      : "text-muted-foreground",
+                  )}
+                />
+                <span
+                  className={cn(
+                    "text-sm font-medium",
+                    selectedOrder === "random"
+                      ? "text-primary"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  ランダム
                 </span>
               </button>
             </div>
