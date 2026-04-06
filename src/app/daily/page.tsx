@@ -40,6 +40,7 @@ export default function DailyPage() {
   const [isRating, setIsRating] = useState(false);
   const [reviewedCount, setReviewedCount] = useState(0);
   const [completedCount, setCompletedCount] = useState<number | null>(null);
+  const [sessionCardIds, setSessionCardIds] = useState<string[] | null>(null);
 
   const [now, setNow] = useState(() => Date.now());
 
@@ -58,9 +59,19 @@ export default function DailyPage() {
     ? Object.fromEntries(decks.map((d) => [d.id, d.name]))
     : {};
 
-  const limitedCards = dueCards?.slice(0, dailyLimit) ?? [];
-  const currentCard = limitedCards[0] ?? null;
   const totalDue = dueCards?.length ?? 0;
+
+  const limitedCards = (() => {
+    if (!dueCards) return [];
+    if (sessionCardIds) {
+      const cardMap = new Map(dueCards.map((c) => [c.id, c]));
+      return sessionCardIds
+        .map((id) => cardMap.get(id))
+        .filter((c): c is NonNullable<typeof c> => c != null);
+    }
+    return dueCards.slice(0, dailyLimit);
+  })();
+  const currentCard = limitedCards[0] ?? null;
 
   const intervals = currentCard
     ? (() => {
@@ -92,11 +103,14 @@ export default function DailyPage() {
   );
 
   const handleStart = useCallback(() => {
+    if (dueCards) {
+      setSessionCardIds(dueCards.slice(0, dailyLimit).map((c) => c.id));
+    }
     setMode(selectedMode);
     setReviewedCount(0);
     setCompletedCount(null);
     setNow(Date.now());
-  }, [selectedMode]);
+  }, [selectedMode, dueCards, dailyLimit]);
 
   const handleAudioComplete = useCallback((count: number) => {
     setCompletedCount(count);
@@ -106,6 +120,7 @@ export default function DailyPage() {
   const handleBackToStart = useCallback(() => {
     setMode("start");
     setReviewedCount(0);
+    setSessionCardIds(null);
     setNow(Date.now());
   }, []);
 
