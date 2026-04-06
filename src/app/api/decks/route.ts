@@ -5,13 +5,23 @@ import { cards, decks } from "@/lib/server/schema";
 import { getDeviceId } from "@/lib/server/auth";
 
 export async function GET(request: Request) {
-  const db = getDb();
-  const deviceId = getDeviceId(request);
-  const result = await db
-    .select()
-    .from(decks)
-    .where(eq(decks.deviceId, deviceId));
-  return NextResponse.json(result);
+  try {
+    const db = getDb();
+    const deviceId = getDeviceId(request);
+    const result = await db
+      .select()
+      .from(decks)
+      .where(eq(decks.deviceId, deviceId));
+    return NextResponse.json(result);
+  } catch (e) {
+    return NextResponse.json(
+      {
+        error: e instanceof Error ? e.message : String(e),
+        stack: e instanceof Error ? e.stack : undefined,
+      },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(request: Request) {
