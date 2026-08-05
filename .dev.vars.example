@@ -1,0 +1,6 @@
+# wrangler dev 用の環境変数。.dev.vars にコピーして値を埋める。
+# DEV_OWNER_ID を設定すると Cloudflare Access の検証をスキップし、
+# この値（またはリクエストの X-Dev-Owner ヘッダー）を owner として使う。
+TURSO_DATABASE_URL=libsql://...
+TURSO_AUTH_TOKEN=...
+DEV_OWNER_ID=local-dev

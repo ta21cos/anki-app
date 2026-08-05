@@ -6,7 +6,7 @@
  *   bun scripts/import-tsv.ts <file-path> [deck-name]
  *
  * - deck-name を省略するとファイル名がデッキ名になる
- * - 既存のデバイス ID が1つならそれを使う、2つ以上なら選択
+ * - 既存のowner が1つならそれを使う、2つ以上なら選択
  */
 
 import { createClient } from "@libsql/client";
@@ -62,26 +62,26 @@ async function prompt(question: string): Promise<string> {
   });
 }
 
-async function getDeviceId(): Promise<string> {
+async function getOwnerId(): Promise<string> {
   const result = await client.execute(
-    "SELECT DISTINCT device_id FROM decks UNION SELECT DISTINCT device_id FROM cards",
+    "SELECT DISTINCT owner_id FROM decks UNION SELECT DISTINCT owner_id FROM cards",
   );
-  const ids = result.rows.map((r) => r.device_id as string);
+  const ids = result.rows.map((r) => r.owner_id as string);
   const unique = [...new Set(ids)];
 
   if (unique.length === 0) {
     console.error(
-      "DB にデバイス ID が見つかりません。先にアプリからインポートしてください。",
+      "DB にowner が見つかりません。先にアプリからインポートしてください。",
     );
     process.exit(1);
   }
 
   if (unique.length === 1) {
-    console.log(`デバイス ID: ${unique[0]}`);
+    console.log(`owner: ${unique[0]}`);
     return unique[0];
   }
 
-  console.log("複数のデバイス ID が見つかりました:");
+  console.log("複数のowner が見つかりました:");
   unique.forEach((id, i) => console.log(`  ${i + 1}. ${id}`));
   const choice = await prompt("番号を選択: ");
   const index = parseInt(choice, 10) - 1;
@@ -105,23 +105,23 @@ async function main() {
   console.log(`カード数: ${cards.length}`);
   console.log(`デッキ名: ${deckName}`);
 
-  const deviceId = await getDeviceId();
+  const ownerId = await getOwnerId();
   const now = Date.now();
   const deckId = crypto.randomUUID();
 
   await client.execute({
-    sql: "INSERT INTO decks (id, device_id, name, created_at) VALUES (?, ?, ?, ?)",
-    args: [deckId, deviceId, deckName, now],
+    sql: "INSERT INTO decks (id, owner_id, name, created_at) VALUES (?, ?, ?, ?)",
+    args: [deckId, ownerId, deckName, now],
   });
 
   const batchSize = 50;
   for (let i = 0; i < cards.length; i += batchSize) {
     const batch = cards.slice(i, i + batchSize);
     const stmts = batch.map((card) => ({
-      sql: "INSERT INTO cards (id, device_id, deck_id, front, back, due, stability, difficulty, reps, lapses, state, last_review, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, NULL, ?)",
+      sql: "INSERT INTO cards (id, owner_id, deck_id, front, back, due, stability, difficulty, reps, lapses, state, last_review, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, NULL, ?)",
       args: [
         crypto.randomUUID(),
-        deviceId,
+        ownerId,
         deckId,
         card.front,
         card.back,

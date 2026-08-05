@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import path from "path";
 import fs from "fs";
 import os from "os";
@@ -14,7 +14,9 @@ test.describe("Import - Page UI", () => {
   test("shows import page with drag & drop zone", async ({ page }) => {
     await page.goto("/import");
     await expect(page.getByText("ファイルをドラッグ＆ドロップ")).toBeVisible();
-    await expect(page.getByText(".txt / .tsv / .csv / .apkg に対応")).toBeVisible();
+    await expect(
+      page.getByText(".txt / .tsv / .csv / .apkg に対応"),
+    ).toBeVisible();
     await expect(page.getByText("ファイルを選択")).toBeVisible();
   });
 

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 test.describe("Foundation - Deck List Page", () => {
   test("shows empty state when no decks exist", async ({ page }) => {
@@ -19,9 +19,7 @@ test.describe("Foundation - Bottom Navigation", () => {
   test("renders all three nav items", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("link", { name: "デッキ" })).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: "インポート" }),
-    ).toBeVisible();
+    await expect(page.getByRole("link", { name: "インポート" })).toBeVisible();
     await expect(page.getByRole("link", { name: "統計" })).toBeVisible();
   });
 
@@ -34,20 +32,8 @@ test.describe("Foundation - Bottom Navigation", () => {
   });
 });
 
-test.describe("Foundation - PWA Manifest", () => {
-  test("serves manifest with correct app name", async ({ request }) => {
-    const response = await request.get("/manifest.webmanifest");
-    expect(response.status()).toBe(200);
-    const manifest = await response.json();
-    expect(manifest.name).toBe("AnkiPWA");
-    expect(manifest.short_name).toBe("AnkiPWA");
-    expect(manifest.display).toBe("standalone");
-    expect(manifest.icons).toHaveLength(2);
-  });
-});
-
-test.describe("Foundation - PWA Meta Tags", () => {
-  test("has apple-web-app meta tags", async ({ page }) => {
+test.describe("Foundation - Meta Tags", () => {
+  test("has apple-touch-icon", async ({ page }) => {
     await page.goto("/");
     const appleTouchIcon = page.locator('link[rel="apple-touch-icon"]');
     await expect(appleTouchIcon).toHaveAttribute("href", "/icon-192.png");

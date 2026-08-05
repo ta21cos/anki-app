@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { useDecks } from "@/lib/api/hooks";
 import { mergeDecks } from "@/lib/api/mutations";

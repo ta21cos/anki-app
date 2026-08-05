@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "types": ["vite/client"],
+    "lib": ["esnext"],
+    "types": ["@cloudflare/workers-types"],
     "module": "esnext",
     "moduleResolution": "bundler",
     "skipLibCheck": true,
@@ -10,11 +10,7 @@
     "noEmit": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "react-jsx",
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    "isolatedModules": true
   },
-  "include": ["src"]
+  "include": ["worker"]
 }

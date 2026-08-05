@@ -1,5 +1,3 @@
-import { getDeviceToken } from "@/lib/device-token";
-
 export async function apiFetch<T>(
   path: string,
   options?: RequestInit,
@@ -8,7 +6,6 @@ export async function apiFetch<T>(
     ...options,
     headers: {
       "Content-Type": "application/json",
-      "X-Device-Token": getDeviceToken(),
       ...options?.headers,
     },
   });

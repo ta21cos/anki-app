@@ -1,5 +1,3 @@
-"use client";
-
 import useSWR from "swr";
 import { apiFetch } from "./client";
 
@@ -34,70 +32,23 @@ export type Stats = {
   reviewedToday: number;
 };
 
-type ApiDeck = {
-  id: string;
-  device_id: string;
-  name: string;
-  created_at: number;
-};
-
-type ApiCard = {
-  id: string;
-  device_id: string;
-  deck_id: string;
-  front: string;
-  back: string;
-  due: number;
-  stability: number;
-  difficulty: number;
-  reps: number;
-  lapses: number;
-  state: number;
-  last_review: number | null;
-  created_at: number;
-};
-
-function toDeck(d: ApiDeck): Deck {
-  return { id: d.id, name: d.name, createdAt: d.created_at };
+function fetchDecks(path: string): Promise<Deck[]> {
+  return apiFetch<Deck[]>(path);
 }
 
-function toCard(c: ApiCard): Card {
-  return {
-    id: c.id,
-    deckId: c.deck_id,
-    front: c.front,
-    back: c.back,
-    due: c.due,
-    stability: c.stability,
-    difficulty: c.difficulty,
-    reps: c.reps,
-    lapses: c.lapses,
-    state: c.state,
-    lastReview: c.last_review,
-    createdAt: c.created_at,
-  };
+function fetchDeck(path: string): Promise<Deck | null> {
+  return apiFetch<Deck | null>(path);
 }
 
-async function fetchDecks(path: string): Promise<Deck[]> {
-  const data = await apiFetch<ApiDeck[]>(path);
-  return data.map(toDeck);
+function fetchCards(path: string): Promise<Card[]> {
+  return apiFetch<Card[]>(path);
 }
 
-async function fetchDeck(path: string): Promise<Deck | null> {
-  const data = await apiFetch<ApiDeck | null>(path);
-  return data ? toDeck(data) : null;
-}
-
-async function fetchCards(path: string): Promise<Card[]> {
-  const data = await apiFetch<ApiCard[]>(path);
-  return data.map(toCard);
-}
-
-async function fetchCount(path: string): Promise<{ count: number }> {
+function fetchCount(path: string): Promise<{ count: number }> {
   return apiFetch<{ count: number }>(path);
 }
 
-async function fetchStats(path: string): Promise<Stats> {
+function fetchStats(path: string): Promise<Stats> {
   return apiFetch<Stats>(path);
 }
 
@@ -136,5 +87,5 @@ export function useDueCardsByDeck(deckId: string | undefined, now: number) {
 }
 
 export function useStats() {
-  return useSWR("/stats", fetchStats);
+  return useSWR(`/stats`, fetchStats);
 }

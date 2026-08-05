@@ -1,5 +1,3 @@
-"use client";
-
 import { mutate } from "swr";
 import { apiFetch } from "./client";
 
@@ -12,7 +10,7 @@ export async function rateCardApi(
     reps: number;
     lapses: number;
     state: number;
-    last_review: number;
+    lastReview: number;
   },
 ) {
   await apiFetch(`/cards/${cardId}`, {

@@ -58,7 +58,7 @@ export function computeNextCard(card: Card, grade: Grade) {
     reps: next.reps,
     lapses: next.lapses,
     state: next.state,
-    last_review: now.getTime(),
+    lastReview: now.getTime(),
   };
 }
 
