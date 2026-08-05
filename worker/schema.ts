@@ -10,18 +10,18 @@ export const decks = sqliteTable(
   "decks",
   {
     id: text("id").primaryKey(),
-    deviceId: text("device_id").notNull(),
+    ownerId: text("owner_id").notNull(),
     name: text("name").notNull(),
     createdAt: integer("created_at").notNull(),
   },
-  (table) => [index("decks_device_id_idx").on(table.deviceId)],
+  (table) => [index("decks_owner_idx").on(table.ownerId)],
 );
 
 export const cards = sqliteTable(
   "cards",
   {
     id: text("id").primaryKey(),
-    deviceId: text("device_id").notNull(),
+    ownerId: text("owner_id").notNull(),
     deckId: text("deck_id").notNull(),
     front: text("front").notNull(),
     back: text("back").notNull(),
@@ -35,11 +35,11 @@ export const cards = sqliteTable(
     createdAt: integer("created_at").notNull(),
   },
   (table) => [
-    index("cards_device_deck_idx").on(table.deviceId, table.deckId),
-    index("cards_device_due_idx").on(table.deviceId, table.due),
-    index("cards_device_state_idx").on(table.deviceId, table.state),
-    index("cards_device_deck_due_idx").on(
-      table.deviceId,
+    index("cards_owner_deck_idx").on(table.ownerId, table.deckId),
+    index("cards_owner_due_idx").on(table.ownerId, table.due),
+    index("cards_owner_state_idx").on(table.ownerId, table.state),
+    index("cards_owner_deck_due_idx").on(
+      table.ownerId,
       table.deckId,
       table.due,
     ),

@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "anki-app",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-07-29",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/api/*"
+    ]
+  },
+  "vars": {
+    // Cloudflare Access の team 名。<team>.cloudflareaccess.com の <team> 部分。
+    "CF_ACCESS_TEAM": "winter-glade-8e7c",
+    "CF_ACCESS_AUD": "d0ef49e4c4b9a40ca875cd79097b71b1453fd619f3a6cbf41fc7a9c3bbde29c1",
+    "CF_ACCESS_AUD_PREVIEW": "ce6b31aa6611518f1a964b10b7048629f2af57127b10aa14c094c868735786c2"
+  }
+  // TURSO_DATABASE_URL / TURSO_AUTH_TOKEN は secret として登録する:
+  //   wrangler secret put TURSO_DATABASE_URL
+  //   wrangler secret put TURSO_AUTH_TOKEN
+}
