@@ -11,9 +11,13 @@
 # testing
 /coverage
 
-# next.js
-/.next/
+# build output
+/dist/
 /out/
+
+# wrangler
+.wrangler/
+.dev.vars
 
 # production
 /build
@@ -36,8 +40,3 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
-
-# serwist service worker (build output)
-public/sw.js
-public/swe-worker-*.js
