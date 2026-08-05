@@ -18,7 +18,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "bun run build && bun run start -p 3939",
+    command:
+      "bun run build && wrangler dev --port 3939 --var DEV_OWNER_ID:e2e-default",
     url: "http://localhost:3939",
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
