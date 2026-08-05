@@ -1,6 +1,5 @@
-"use client";
-
-import { useState, use } from "react";
+import { useState } from "react";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useDeck, useDeckCards } from "@/lib/api/hooks";
 import {
   updateDeckName,
@@ -9,9 +8,7 @@ import {
   deleteCard,
   deleteDeck,
 } from "@/lib/api/mutations";
-import { useRouter } from "next/navigation";
 import { ArrowLeft, Trash2, Check, Pencil, X, Plus } from "lucide-react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 interface EditingCard {
@@ -20,13 +17,9 @@ interface EditingCard {
   back: string;
 }
 
-export default function DeckEditPage({
-  params,
-}: {
-  params: Promise<{ deckId: string }>;
-}) {
-  const { deckId } = use(params);
-  const router = useRouter();
+export function DeckEditPage() {
+  const { deckId } = useParams({ from: "/deck/$deckId/edit" });
+  const navigate = useNavigate();
 
   const { data: deck, isLoading: deckLoading } = useDeck(deckId);
   const { data: cards, isLoading: cardsLoading } = useDeckCards(deckId);
@@ -108,7 +101,7 @@ export default function DeckEditPage({
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6">
         <p className="text-muted-foreground">デッキが見つかりません</p>
-        <Link href="/" className="text-primary underline">
+        <Link to="/" className="text-primary underline">
           デッキ一覧に戻る
         </Link>
       </div>
@@ -120,7 +113,7 @@ export default function DeckEditPage({
   return (
     <div className="px-4 pt-6">
       <div className="mb-6 flex items-center gap-3">
-        <Link href="/" className="text-muted-foreground hover:text-foreground">
+        <Link to="/" className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-5" />
         </Link>
         <h1 className="text-lg font-semibold">デッキ編集</h1>
@@ -234,7 +227,7 @@ export default function DeckEditPage({
           className="w-full"
           onClick={async () => {
             await deleteDeck(deckId);
-            router.push("/");
+            navigate({ to: "/" });
           }}
         >
           <Trash2 className="size-4" />

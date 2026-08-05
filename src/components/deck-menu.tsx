@@ -1,7 +1,5 @@
-"use client";
-
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "@tanstack/react-router";
 import { MoreVertical, Pencil, Trash2, Volume2 } from "lucide-react";
 import { deleteDeck } from "@/lib/api/mutations";
 
@@ -14,7 +12,7 @@ export function DeckMenu({ deckId, deckName }: DeckMenuProps) {
   const [open, setOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
+  const navigate = useNavigate();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -88,7 +86,7 @@ export function DeckMenu({ deckId, deckName }: DeckMenuProps) {
                   e.preventDefault();
                   e.stopPropagation();
                   setOpen(false);
-                  router.push(`/listen/${deckId}`);
+                  navigate({ to: "/listen/$deckId", params: { deckId } });
                 }}
                 className="flex w-full items-center gap-2 px-3 py-2.5 text-sm transition-colors hover:bg-accent"
               >
@@ -100,7 +98,7 @@ export function DeckMenu({ deckId, deckName }: DeckMenuProps) {
                   e.preventDefault();
                   e.stopPropagation();
                   setOpen(false);
-                  router.push(`/deck/${deckId}/edit`);
+                  navigate({ to: "/deck/$deckId/edit", params: { deckId } });
                 }}
                 className="flex w-full items-center gap-2 px-3 py-2.5 text-sm transition-colors hover:bg-accent"
               >

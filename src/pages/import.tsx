@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useCallback, useRef } from "react";
 import { Upload, CheckCircle2, AlertCircle, FileUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,7 +10,7 @@ type ImportState =
   | { status: "success"; result: ImportResult }
   | { status: "error"; message: string };
 
-export default function ImportPage() {
+export function ImportPage() {
   const [state, setState] = useState<ImportState>({ status: "idle" });
   const [deckName, setDeckName] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);

@@ -1,5 +1,3 @@
-"use client";
-
 import DOMPurify from "isomorphic-dompurify";
 
 interface CardViewerProps {

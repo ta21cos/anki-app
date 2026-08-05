@@ -1,6 +1,5 @@
-"use client";
-
-import { useState, useCallback, use } from "react";
+import { useState, useCallback } from "react";
+import { Link, useParams } from "@tanstack/react-router";
 import { useDeck, useDueCardsByDeck } from "@/lib/api/hooks";
 import { rateCardApi } from "@/lib/api/mutations";
 import {
@@ -14,23 +13,16 @@ import { CardViewer } from "@/components/card-viewer";
 import { RatingButtons } from "@/components/rating-buttons";
 import { CardEditButton } from "@/components/card-edit-button";
 import { ArrowLeft, CheckCircle2, Shuffle } from "lucide-react";
-import Link from "next/link";
 
 function shuffleArray<T>(arr: T[]): T[] {
-  const shuffled = [...arr];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
+  return arr
+    .map((value) => ({ value, sortKey: Math.random() }))
+    .sort((a, b) => a.sortKey - b.sortKey)
+    .map(({ value }) => value);
 }
 
-export default function StudyPage({
-  params,
-}: {
-  params: Promise<{ deckId: string }>;
-}) {
-  const { deckId } = use(params);
+export function StudyPage() {
+  const { deckId } = useParams({ from: "/study/$deckId" });
   const [showAnswer, setShowAnswer] = useState(false);
   const [isRating, setIsRating] = useState(false);
   const [isShuffled, setIsShuffled] = useState(false);
@@ -107,7 +99,7 @@ export default function StudyPage({
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6">
         <p className="text-muted-foreground">デッキが見つかりません</p>
-        <Link href="/" className="text-primary underline">
+        <Link to="/" className="text-primary underline">
           デッキ一覧に戻る
         </Link>
       </div>
@@ -122,7 +114,7 @@ export default function StudyPage({
         <p className="text-center text-muted-foreground">
           「{deck.name}」の今日のカードはすべて復習しました
         </p>
-        <Link href="/" className="text-primary underline">
+        <Link to="/" className="text-primary underline">
           デッキ一覧に戻る
         </Link>
       </div>
@@ -132,7 +124,7 @@ export default function StudyPage({
   return (
     <div className="px-4 pt-6">
       <div className="mb-4 flex items-center gap-3">
-        <Link href="/" className="text-muted-foreground hover:text-foreground">
+        <Link to="/" className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-5" />
         </Link>
         <h1 className="text-lg font-semibold">{deck.name}</h1>
@@ -145,7 +137,7 @@ export default function StudyPage({
             <Shuffle className="size-4" />
           </button>
           <span className="text-sm text-muted-foreground">
-            残り {orderedCards!.length} 枚
+            残り {orderedCards?.length ?? 0} 枚
           </span>
         </div>
       </div>

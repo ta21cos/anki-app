@@ -77,6 +77,8 @@
 }
 
 :root {
+  --font-zen-maru: "Zen Maru Gothic", sans-serif;
+  --font-geist-mono: "Geist Mono", monospace;
   --radius: 0.625rem;
 
   /* --- Base Palette (Warm Cream) --- */
@@ -244,5 +246,5 @@ mark {
 }
 
 .dark mark {
-  background-color: oklch(0.45 0.10 95);
+  background-color: oklch(0.45 0.1 95);
 }

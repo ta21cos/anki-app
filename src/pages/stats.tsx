@@ -1,18 +1,7 @@
-"use client";
-
-import { useState } from "react";
 import { useStats } from "@/lib/api/hooks";
-import { getDeviceToken } from "@/lib/device-token";
-import {
-  BarChart3,
-  BookOpen,
-  CheckCircle2,
-  Clock,
-  Copy,
-  Check,
-} from "lucide-react";
+import { BarChart3, BookOpen, CheckCircle2, Clock } from "lucide-react";
 
-export default function StatsPage() {
+export function StatsPage() {
   const { data: stats } = useStats();
 
   if (stats === undefined) {
@@ -73,78 +62,6 @@ export default function StatsPage() {
           />
         </div>
       </div>
-
-      <DeviceIdSection />
-    </div>
-  );
-}
-
-function DeviceIdSection() {
-  const [copied, setCopied] = useState(false);
-  const [inputValue, setInputValue] = useState("");
-  const [showInput, setShowInput] = useState(false);
-  const deviceId = getDeviceToken();
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(deviceId);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleApply = () => {
-    const trimmed = inputValue.trim();
-    if (!trimmed) return;
-    localStorage.setItem("device-token", trimmed);
-    window.location.reload();
-  };
-
-  return (
-    <div className="mt-8 rounded-lg border p-4">
-      <h2 className="mb-2 text-sm font-semibold">デバイス ID</h2>
-      <p className="mb-3 text-xs text-muted-foreground">
-        他の端末���この ID を��力すると、同じデータにアクセスできます
-      </p>
-      <div className="flex items-center gap-2">
-        <code className="flex-1 truncate rounded bg-muted px-2 py-1.5 text-xs">
-          {deviceId}
-        </code>
-        <button
-          onClick={handleCopy}
-          className="shrink-0 rounded-md border p-1.5 text-muted-foreground transition-colors hover:bg-accent"
-        >
-          {copied ? (
-            <Check className="size-4 text-green-500" />
-          ) : (
-            <Copy className="size-4" />
-          )}
-        </button>
-      </div>
-
-      {!showInput ? (
-        <button
-          onClick={() => setShowInput(true)}
-          className="mt-3 text-xs text-muted-foreground underline"
-        >
-          別の端末の ID を入力する
-        </button>
-      ) : (
-        <div className="mt-3 flex gap-2">
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="デバイス ID を貼り付け"
-            className="flex-1 rounded-md border bg-background px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring"
-          />
-          <button
-            onClick={handleApply}
-            disabled={!inputValue.trim()}
-            className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground disabled:opacity-50"
-          >
-            適用
-          </button>
-        </div>
-      )}
     </div>
   );
 }

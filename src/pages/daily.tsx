@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useCallback } from "react";
 import { useDecks, useDueCards } from "@/lib/api/hooks";
 import { rateCardApi } from "@/lib/api/mutations";
@@ -36,15 +34,13 @@ type Mode = "start" | "card" | "audio";
 type Order = "default" | "random";
 
 function shuffleArray<T>(arr: T[]): T[] {
-  const shuffled = [...arr];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
+  return arr
+    .map((value) => ({ value, sortKey: Math.random() }))
+    .sort((a, b) => a.sortKey - b.sortKey)
+    .map(({ value }) => value);
 }
 
-export default function DailyPage() {
+export function DailyPage() {
   const [mode, setMode] = useState<Mode>("start");
   const [selectedMode, setSelectedMode] = useState<"card" | "audio">("card");
   const [selectedOrder, setSelectedOrder] = useState<Order>("default");

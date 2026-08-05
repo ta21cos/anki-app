@@ -1,6 +1,5 @@
-"use client";
-
-import { useState, useCallback, useEffect, useRef, use } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { Link, useParams } from "@tanstack/react-router";
 import { useDeck, useDeckCards, type Card } from "@/lib/api/hooks";
 import { stripHtmlToPlainText, speak, stopSpeaking } from "@/lib/tts";
 import { CardViewer } from "@/components/card-viewer";
@@ -16,7 +15,6 @@ import {
   Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 const SPEED_OPTIONS = [
@@ -27,12 +25,8 @@ const SPEED_OPTIONS = [
   { label: "1.5x", rate: 1.5 },
 ];
 
-export default function ListenPage({
-  params,
-}: {
-  params: Promise<{ deckId: string }>;
-}) {
-  const { deckId } = use(params);
+export function ListenPage() {
+  const { deckId } = useParams({ from: "/listen/$deckId" });
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [autoMode, setAutoMode] = useState(false);
@@ -187,7 +181,7 @@ export default function ListenPage({
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6">
         <p className="text-muted-foreground">デッキが見つかりません</p>
-        <Link href="/" className="text-primary underline">
+        <Link to="/" className="text-primary underline">
           デッキ一覧に戻る
         </Link>
       </div>
@@ -202,7 +196,7 @@ export default function ListenPage({
         <p className="text-center text-muted-foreground">
           このデッキにはまだカードがありません
         </p>
-        <Link href="/" className="text-primary underline">
+        <Link to="/" className="text-primary underline">
           デッキ一覧に戻る
         </Link>
       </div>
@@ -212,7 +206,7 @@ export default function ListenPage({
   return (
     <div className="px-4 pt-6 pb-32">
       <div className="mb-4 flex items-center gap-3">
-        <Link href="/" className="text-muted-foreground hover:text-foreground">
+        <Link to="/" className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-5" />
         </Link>
         <div className="flex items-center gap-2">

@@ -1,13 +1,11 @@
-"use client";
-
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { useDecks, useDeckCardCount, useDeckDueCount } from "@/lib/api/hooks";
 import { BookOpen } from "lucide-react";
-import Link from "next/link";
 import { DeckMergeDialog } from "@/components/deck-merge-dialog";
 import { DeckMenu } from "@/components/deck-menu";
 
-export default function HomePage() {
+export function HomePage() {
   const { data: decks } = useDecks();
 
   if (decks === undefined) {
@@ -56,7 +54,8 @@ function DeckItem({ deck }: { deck: { id: string; name: string } }) {
   return (
     <div className="flex items-center rounded-lg border transition-colors hover:bg-accent">
       <Link
-        href={`/study/${deck.id}`}
+        to="/study/$deckId"
+        params={{ deckId: deck.id }}
         className="flex min-w-0 flex-1 items-center justify-between p-4"
       >
         <div className="min-w-0">

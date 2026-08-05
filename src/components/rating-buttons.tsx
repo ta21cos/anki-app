@@ -1,5 +1,3 @@
-"use client";
-
 import { Rating, type Grade } from "@/lib/fsrs";
 
 interface RatingButtonsProps {
