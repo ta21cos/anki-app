@@ -137,11 +137,22 @@ app.get("/decks/:deckId", async (c) => {
 app.patch("/decks/:deckId", async (c) => {
   const db = getDb(c.env);
   const deckId = c.req.param("deckId");
-  const body = (await c.req.json()) as { name?: string };
-  if (typeof body.name === "string") {
+  const body = (await c.req.json()) as {
+    name?: string;
+    includeInDaily?: boolean;
+  };
+
+  const patch: Partial<{ name: string; includeInDaily: boolean }> = {
+    ...(typeof body.name === "string" ? { name: body.name } : {}),
+    ...(typeof body.includeInDaily === "boolean"
+      ? { includeInDaily: body.includeInDaily }
+      : {}),
+  };
+
+  if (Object.keys(patch).length > 0) {
     await db
       .update(decks)
-      .set({ name: body.name })
+      .set(patch)
       .where(and(eq(decks.id, deckId), eq(decks.ownerId, c.get("ownerId"))));
   }
   return c.json({ ok: true });

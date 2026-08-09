@@ -56,13 +56,20 @@ export function DailyPage() {
   const { data: rawDueCards } = useDueCards(now);
   const { data: decks } = useDecks();
 
-  const dueCards = rawDueCards
-    ? [...rawDueCards].sort((a, b) => {
-        if (a.state === 0 && b.state !== 0) return -1;
-        if (a.state !== 0 && b.state === 0) return 1;
-        return a.due - b.due;
-      })
-    : undefined;
+  const includedDeckIds = decks
+    ? new Set(decks.filter((d) => d.includeInDaily).map((d) => d.id))
+    : null;
+
+  const dueCards =
+    rawDueCards && includedDeckIds
+      ? rawDueCards
+          .filter((card) => includedDeckIds.has(card.deckId))
+          .sort((a, b) => {
+            if (a.state === 0 && b.state !== 0) return -1;
+            if (a.state !== 0 && b.state === 0) return 1;
+            return a.due - b.due;
+          })
+      : undefined;
 
   const deckNameMap = decks
     ? Object.fromEntries(decks.map((d) => [d.id, d.name]))

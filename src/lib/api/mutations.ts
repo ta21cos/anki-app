@@ -73,6 +73,17 @@ export async function updateDeckName(deckId: string, name: string) {
   await mutate((key) => typeof key === "string" && key.includes("/decks"));
 }
 
+export async function setDeckIncludeInDaily(
+  deckId: string,
+  includeInDaily: boolean,
+) {
+  await apiFetch(`/decks/${deckId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ includeInDaily }),
+  });
+  await mutate((key) => typeof key === "string" && key.includes("/decks"));
+}
+
 export async function importDeck(
   deck: { id: string; name: string; createdAt: number },
   cards: Array<{
