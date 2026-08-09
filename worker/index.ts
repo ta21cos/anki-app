@@ -22,7 +22,15 @@ app.use("*", async (c, next) => {
   if (!c.env.CF_ACCESS_TEAM) {
     throw new HTTPException(500, { message: "CF_ACCESS_TEAM is not set" });
   }
-  const verifyAccessJwt = cloudflareAccess(c.env.CF_ACCESS_TEAM);
+  // aud 照合: 同じ team の別アプリケーション向けに発行された JWT を弾く。
+  // aud が未設定なら middleware は team 名のみで検証する（後方互換）。
+  const expectedAud = [c.env.CF_ACCESS_AUD, c.env.CF_ACCESS_AUD_PREVIEW].filter(
+    (aud): aud is string => Boolean(aud),
+  );
+  const verifyAccessJwt =
+    expectedAud.length > 0
+      ? cloudflareAccess(c.env.CF_ACCESS_TEAM, expectedAud)
+      : cloudflareAccess(c.env.CF_ACCESS_TEAM);
   return verifyAccessJwt(c, async () => {
     const email = c.get("accessPayload").email;
     if (!email) {

@@ -7,6 +7,8 @@ export type Env = {
   TURSO_DATABASE_URL: string;
   TURSO_AUTH_TOKEN?: string;
   CF_ACCESS_TEAM?: string;
+  CF_ACCESS_AUD?: string;
+  CF_ACCESS_AUD_PREVIEW?: string;
   DEV_OWNER_ID?: string;
 };
 
