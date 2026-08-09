@@ -12,6 +12,9 @@ export const decks = sqliteTable(
     id: text("id").primaryKey(),
     ownerId: text("owner_id").notNull(),
     name: text("name").notNull(),
+    includeInDaily: integer("include_in_daily", { mode: "boolean" })
+      .notNull()
+      .default(true),
     createdAt: integer("created_at").notNull(),
   },
   (table) => [index("decks_owner_idx").on(table.ownerId)],

@@ -22,7 +22,15 @@ app.use("*", async (c, next) => {
   if (!c.env.CF_ACCESS_TEAM) {
     throw new HTTPException(500, { message: "CF_ACCESS_TEAM is not set" });
   }
-  const verifyAccessJwt = cloudflareAccess(c.env.CF_ACCESS_TEAM);
+  // aud 照合: 同じ team の別アプリケーション向けに発行された JWT を弾く。
+  // aud が未設定なら middleware は team 名のみで検証する（後方互換）。
+  const expectedAud = [c.env.CF_ACCESS_AUD, c.env.CF_ACCESS_AUD_PREVIEW].filter(
+    (aud): aud is string => Boolean(aud),
+  );
+  const verifyAccessJwt =
+    expectedAud.length > 0
+      ? cloudflareAccess(c.env.CF_ACCESS_TEAM, expectedAud)
+      : cloudflareAccess(c.env.CF_ACCESS_TEAM);
   return verifyAccessJwt(c, async () => {
     const email = c.get("accessPayload").email;
     if (!email) {
@@ -129,11 +137,22 @@ app.get("/decks/:deckId", async (c) => {
 app.patch("/decks/:deckId", async (c) => {
   const db = getDb(c.env);
   const deckId = c.req.param("deckId");
-  const body = (await c.req.json()) as { name?: string };
-  if (typeof body.name === "string") {
+  const body = (await c.req.json()) as {
+    name?: string;
+    includeInDaily?: boolean;
+  };
+
+  const patch: Partial<{ name: string; includeInDaily: boolean }> = {
+    ...(typeof body.name === "string" ? { name: body.name } : {}),
+    ...(typeof body.includeInDaily === "boolean"
+      ? { includeInDaily: body.includeInDaily }
+      : {}),
+  };
+
+  if (Object.keys(patch).length > 0) {
     await db
       .update(decks)
-      .set({ name: body.name })
+      .set(patch)
       .where(and(eq(decks.id, deckId), eq(decks.ownerId, c.get("ownerId"))));
   }
   return c.json({ ok: true });

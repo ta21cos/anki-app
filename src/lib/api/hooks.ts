@@ -4,6 +4,7 @@ import { apiFetch } from "./client";
 export type Deck = {
   id: string;
   name: string;
+  includeInDaily: boolean;
   createdAt: number;
 };
 

@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useDecks, useDueCards } from "@/lib/api/hooks";
+import { useDecks, useDueCards, type Deck } from "@/lib/api/hooks";
 import { rateCardApi } from "@/lib/api/mutations";
 import {
   getNextReviews,
@@ -33,6 +33,13 @@ const STEP = 5;
 type Mode = "start" | "card" | "audio";
 type Order = "default" | "random";
 
+type SessionResult = {
+  cardId: string;
+  front: string;
+  deckId: string;
+  grade: Grade;
+};
+
 function shuffleArray<T>(arr: T[]): T[] {
   return arr
     .map((value) => ({ value, sortKey: Math.random() }))
@@ -56,13 +63,36 @@ export function DailyPage() {
   const { data: rawDueCards } = useDueCards(now);
   const { data: decks } = useDecks();
 
-  const dueCards = rawDueCards
-    ? [...rawDueCards].sort((a, b) => {
-        if (a.state === 0 && b.state !== 0) return -1;
-        if (a.state !== 0 && b.state === 0) return 1;
-        return a.due - b.due;
-      })
-    : undefined;
+  // このセッション限りのデッキ選択。初期値はデッキタブの include_in_daily。
+  const [deckOverrides, setDeckOverrides] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [sessionResults, setSessionResults] = useState<SessionResult[]>([]);
+
+  const isDeckSelected = (deck: Deck) =>
+    deckOverrides[deck.id] ?? deck.includeInDaily;
+
+  const includedDeckIds = decks
+    ? new Set(decks.filter(isDeckSelected).map((d) => d.id))
+    : null;
+
+  const dueCountByDeck = rawDueCards
+    ? rawDueCards.reduce<Record<string, number>>((acc, card) => {
+        acc[card.deckId] = (acc[card.deckId] ?? 0) + 1;
+        return acc;
+      }, {})
+    : {};
+
+  const dueCards =
+    rawDueCards && includedDeckIds
+      ? rawDueCards
+          .filter((card) => includedDeckIds.has(card.deckId))
+          .sort((a, b) => {
+            if (a.state === 0 && b.state !== 0) return -1;
+            if (a.state !== 0 && b.state === 0) return 1;
+            return a.due - b.due;
+          })
+      : undefined;
 
   const deckNameMap = decks
     ? Object.fromEntries(decks.map((d) => [d.id, d.name]))
@@ -101,6 +131,15 @@ export function DailyPage() {
       try {
         const fields = computeNextCard(currentCard, grade);
         await rateCardApi(currentCard.id, fields);
+        setSessionResults((prev) => [
+          ...prev,
+          {
+            cardId: currentCard.id,
+            front: currentCard.front,
+            deckId: currentCard.deckId,
+            grade,
+          },
+        ]);
         setShowAnswer(false);
         setReviewedCount((c) => c + 1);
         setNow(Date.now());
@@ -119,6 +158,7 @@ export function DailyPage() {
     setMode(selectedMode);
     setReviewedCount(0);
     setCompletedCount(null);
+    setSessionResults([]);
     setNow(Date.now());
   }, [selectedMode, selectedOrder, dueCards, dailyLimit]);
 
@@ -157,6 +197,41 @@ export function DailyPage() {
         )}
 
         <div className="space-y-6">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-muted-foreground">
+              対象デッキ
+            </label>
+            <div className="space-y-2">
+              {decks.map((deck) => (
+                <label
+                  key={deck.id}
+                  className="flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 transition-colors hover:bg-accent"
+                >
+                  <input
+                    type="checkbox"
+                    checked={isDeckSelected(deck)}
+                    onChange={(e) =>
+                      setDeckOverrides((prev) => ({
+                        ...prev,
+                        [deck.id]: e.target.checked,
+                      }))
+                    }
+                    className="size-4 accent-primary"
+                  />
+                  <span className="min-w-0 flex-1 truncate text-sm">
+                    {deck.name}
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {dueCountByDeck[deck.id] ?? 0} 枚
+                  </span>
+                </label>
+              ))}
+            </div>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              初期値はデッキタブの設定です。ここでの変更は今回だけ有効です
+            </p>
+          </div>
+
           <div>
             <label className="mb-2 block text-sm font-medium text-muted-foreground">
               学習枚数
@@ -360,8 +435,22 @@ export function DailyPage() {
   }
 
   if (!currentCard) {
+    const worstByCard = sessionResults.reduce<Map<string, SessionResult>>(
+      (map, result) => {
+        const prev = map.get(result.cardId);
+        if (!prev || result.grade < prev.grade) {
+          map.set(result.cardId, result);
+        }
+        return map;
+      },
+      new Map(),
+    );
+    const struggled = [...worstByCard.values()];
+    const againResults = struggled.filter((r) => r.grade === Rating.Again);
+    const hardResults = struggled.filter((r) => r.grade === Rating.Hard);
+
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6">
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 py-8">
         <CheckCircle2 className="size-12 text-success" />
         <h1 className="text-xl font-semibold">
           {reviewedCount > 0
@@ -373,6 +462,34 @@ export function DailyPage() {
             {reviewedCount} 枚のカードを復習しました
           </p>
         )}
+
+        {againResults.length > 0 || hardResults.length > 0 ? (
+          <div className="w-full max-w-md space-y-4">
+            {againResults.length > 0 && (
+              <SessionSummaryList
+                title="もう一度"
+                titleClassName="text-grade-again"
+                items={againResults}
+                deckNameMap={deckNameMap}
+              />
+            )}
+            {hardResults.length > 0 && (
+              <SessionSummaryList
+                title="難しかった"
+                titleClassName="text-grade-hard"
+                items={hardResults}
+                deckNameMap={deckNameMap}
+              />
+            )}
+          </div>
+        ) : (
+          reviewedCount > 0 && (
+            <p className="text-sm text-muted-foreground">
+              つまずいたカードはありませんでした
+            </p>
+          )
+        )}
+
         <button onClick={handleBackToStart} className="text-primary underline">
           スタートに戻る
         </button>
@@ -439,4 +556,45 @@ export function DailyPage() {
       )}
     </div>
   );
+}
+
+function SessionSummaryList({
+  title,
+  titleClassName,
+  items,
+  deckNameMap,
+}: {
+  title: string;
+  titleClassName: string;
+  items: SessionResult[];
+  deckNameMap: Record<string, string>;
+}) {
+  return (
+    <div>
+      <h2 className={`mb-2 text-sm font-semibold ${titleClassName}`}>
+        {title}（{items.length} 枚）
+      </h2>
+      <div className="space-y-1.5">
+        {items.map((item) => (
+          <div
+            key={item.cardId}
+            className="flex items-center gap-2 rounded-lg border p-2.5"
+          >
+            <span className="min-w-0 flex-1 truncate text-sm">
+              {stripHtml(item.front)}
+            </span>
+            {deckNameMap[item.deckId] && (
+              <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                {deckNameMap[item.deckId]}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, "").trim();
 }

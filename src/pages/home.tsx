@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useDecks, useDeckCardCount, useDeckDueCount } from "@/lib/api/hooks";
+import {
+  useDecks,
+  useDeckCardCount,
+  useDeckDueCount,
+  type Deck,
+} from "@/lib/api/hooks";
+import { setDeckIncludeInDaily } from "@/lib/api/mutations";
 import { BookOpen } from "lucide-react";
 import { DeckMergeDialog } from "@/components/deck-merge-dialog";
 import { DeckMenu } from "@/components/deck-menu";
@@ -43,7 +49,7 @@ export function HomePage() {
   );
 }
 
-function DeckItem({ deck }: { deck: { id: string; name: string } }) {
+function DeckItem({ deck }: { deck: Deck }) {
   const { data: cardCountData } = useDeckCardCount(deck.id);
   const cardCount = cardCountData?.count ?? 0;
 
@@ -51,8 +57,32 @@ function DeckItem({ deck }: { deck: { id: string; name: string } }) {
   const { data: dueCountData } = useDeckDueCount(deck.id, now);
   const dueCount = dueCountData?.count ?? 0;
 
+  const [pendingInclude, setPendingInclude] = useState<boolean | null>(null);
+  const includeInDaily = pendingInclude ?? deck.includeInDaily;
+
+  const handleToggleInclude = async (next: boolean) => {
+    setPendingInclude(next);
+    try {
+      await setDeckIncludeInDaily(deck.id, next);
+    } finally {
+      setPendingInclude(null);
+    }
+  };
+
   return (
     <div className="flex items-center rounded-lg border transition-colors hover:bg-accent">
+      <label
+        className="flex shrink-0 items-center self-stretch pl-4 pr-1"
+        aria-label={`「${deck.name}」を今日の学習に含める`}
+      >
+        <input
+          type="checkbox"
+          checked={includeInDaily}
+          disabled={pendingInclude !== null}
+          onChange={(e) => handleToggleInclude(e.target.checked)}
+          className="size-4 accent-primary"
+        />
+      </label>
       <Link
         to="/study/$deckId"
         params={{ deckId: deck.id }}
