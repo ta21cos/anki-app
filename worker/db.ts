@@ -10,6 +10,8 @@ export type Env = {
   CF_ACCESS_AUD?: string;
   CF_ACCESS_AUD_PREVIEW?: string;
   DEV_OWNER_ID?: string;
+  OPENAI_API_KEY?: string;
+  AUDIO_KV: KVNamespace;
 };
 
 const cache: { db: LibSQLDatabase<typeof schema> | null } = { db: null };

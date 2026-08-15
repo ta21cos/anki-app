@@ -12,8 +12,15 @@ import { CardViewer } from "@/components/card-viewer";
 import { CardEditButton } from "@/components/card-edit-button";
 import { RatingButtons } from "@/components/rating-buttons";
 import { ListenReviewMode } from "@/components/listen-review-mode";
+import { AudioQuizPlayer } from "@/components/audio-quiz-player";
+import {
+  prepareAudioQuiz,
+  AUDIO_QUIZ_MAX_CARDS,
+  type AudioSession,
+} from "@/lib/api/audio";
 import {
   CheckCircle2,
+  Headphones,
   Minus,
   Plus,
   CreditCard,
@@ -29,9 +36,15 @@ const DEFAULT_DAILY_LIMIT = 20;
 const MIN_LIMIT = 5;
 const MAX_LIMIT = 100;
 const STEP = 5;
+const AUDIO_QUIZ_PAUSE_SECONDS = 6;
 
-type Mode = "start" | "card" | "audio";
+type Mode = "start" | "card" | "audio" | "audioquiz";
 type Order = "default" | "random";
+
+type AudioQuizState =
+  | { status: "preparing"; done: number; total: number }
+  | { status: "ready"; session: AudioSession }
+  | { status: "error"; message: string };
 
 type SessionResult = {
   cardId: string;
@@ -49,7 +62,10 @@ function shuffleArray<T>(arr: T[]): T[] {
 
 export function DailyPage() {
   const [mode, setMode] = useState<Mode>("start");
-  const [selectedMode, setSelectedMode] = useState<"card" | "audio">("card");
+  const [selectedMode, setSelectedMode] = useState<
+    "card" | "audio" | "audioquiz"
+  >("card");
+  const [audioQuiz, setAudioQuiz] = useState<AudioQuizState | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order>("default");
   const [dailyLimit, setDailyLimit] = useState(DEFAULT_DAILY_LIMIT);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -150,7 +166,38 @@ export function DailyPage() {
     [currentCard, isRating],
   );
 
+  const startAudioQuiz = useCallback(async () => {
+    if (!dueCards || dueCards.length === 0) return;
+    const pool = dueCards.slice(0, Math.min(dailyLimit, AUDIO_QUIZ_MAX_CARDS));
+    const ordered = selectedOrder === "random" ? shuffleArray(pool) : pool;
+    setMode("audioquiz");
+    setAudioQuiz({ status: "preparing", done: 0, total: ordered.length * 2 });
+    try {
+      const session = await prepareAudioQuiz(
+        ordered.map((c) => ({
+          id: c.id,
+          deckId: c.deckId,
+          front: c.front,
+          back: c.back,
+        })),
+        AUDIO_QUIZ_PAUSE_SECONDS,
+        (done, total) => setAudioQuiz({ status: "preparing", done, total }),
+      );
+      setAudioQuiz({ status: "ready", session });
+    } catch (err) {
+      setAudioQuiz({
+        status: "error",
+        message:
+          err instanceof Error ? err.message : "音声の準備に失敗しました",
+      });
+    }
+  }, [dueCards, dailyLimit, selectedOrder]);
+
   const handleStart = useCallback(() => {
+    if (selectedMode === "audioquiz") {
+      startAudioQuiz();
+      return;
+    }
     if (dueCards) {
       const ids = dueCards.slice(0, dailyLimit).map((c) => c.id);
       setSessionCardIds(selectedOrder === "random" ? shuffleArray(ids) : ids);
@@ -160,7 +207,7 @@ export function DailyPage() {
     setCompletedCount(null);
     setSessionResults([]);
     setNow(Date.now());
-  }, [selectedMode, selectedOrder, dueCards, dailyLimit]);
+  }, [selectedMode, selectedOrder, dueCards, dailyLimit, startAudioQuiz]);
 
   const handleAudioComplete = useCallback((count: number) => {
     setCompletedCount(count);
@@ -171,6 +218,7 @@ export function DailyPage() {
     setMode("start");
     setReviewedCount(0);
     setSessionCardIds(null);
+    setAudioQuiz(null);
     setNow(Date.now());
   }, []);
 
@@ -268,64 +316,51 @@ export function DailyPage() {
             <label className="mb-2 block text-sm font-medium text-muted-foreground">
               学習モード
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setSelectedMode("card")}
-                className={cn(
-                  "flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-colors",
-                  selectedMode === "card"
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-muted-foreground/30",
-                )}
-              >
-                <CreditCard
+            <div className="grid grid-cols-3 gap-3">
+              {(
+                [
+                  { key: "card", label: "カード", icon: CreditCard },
+                  { key: "audioquiz", label: "音声クイズ", icon: Headphones },
+                  { key: "audio", label: "読み上げ", icon: Volume2 },
+                ] as const
+              ).map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => setSelectedMode(key)}
                   className={cn(
-                    "size-6",
-                    selectedMode === "card"
-                      ? "text-primary"
-                      : "text-muted-foreground",
-                  )}
-                />
-                <span
-                  className={cn(
-                    "text-sm font-medium",
-                    selectedMode === "card"
-                      ? "text-primary"
-                      : "text-muted-foreground",
+                    "flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-colors",
+                    selectedMode === key
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-muted-foreground/30",
                   )}
                 >
-                  カード
-                </span>
-              </button>
-              <button
-                onClick={() => setSelectedMode("audio")}
-                className={cn(
-                  "flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-colors",
-                  selectedMode === "audio"
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-muted-foreground/30",
-                )}
-              >
-                <Volume2
-                  className={cn(
-                    "size-6",
-                    selectedMode === "audio"
-                      ? "text-primary"
-                      : "text-muted-foreground",
-                  )}
-                />
-                <span
-                  className={cn(
-                    "text-sm font-medium",
-                    selectedMode === "audio"
-                      ? "text-primary"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  音声
-                </span>
-              </button>
+                  <Icon
+                    className={cn(
+                      "size-6",
+                      selectedMode === key
+                        ? "text-primary"
+                        : "text-muted-foreground",
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "text-sm font-medium",
+                      selectedMode === key
+                        ? "text-primary"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {label}
+                  </span>
+                </button>
+              ))}
             </div>
+            {selectedMode === "audioquiz" && (
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                表面 → 想起ポーズ → 裏面を読み上げる番組を作ります（最大{" "}
+                {AUDIO_QUIZ_MAX_CARDS} 枚）。画面をロックしても再生が続きます
+              </p>
+            )}
           </div>
 
           <div>
@@ -430,6 +465,63 @@ export function DailyPage() {
           deckNameMap={deckNameMap}
           onComplete={handleAudioComplete}
         />
+      </div>
+    );
+  }
+
+  if (mode === "audioquiz") {
+    return (
+      <div className="px-4 pt-6">
+        <div className="mb-4 flex items-center gap-3">
+          <button
+            onClick={handleBackToStart}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            ← 戻る
+          </button>
+          <h1 className="text-lg font-semibold">今日の学習（音声クイズ）</h1>
+        </div>
+
+        {audioQuiz?.status === "preparing" && (
+          <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3">
+            <div className="text-muted-foreground">
+              音声を準備中… {audioQuiz.done} / {audioQuiz.total}
+            </div>
+            <div className="h-2 w-56 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-2 rounded-full bg-primary transition-all"
+                style={{
+                  width: `${(audioQuiz.done / Math.max(audioQuiz.total, 1)) * 100}%`,
+                }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              初回は読み上げの生成に少し時間がかかります
+            </p>
+          </div>
+        )}
+
+        {audioQuiz?.status === "error" && (
+          <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 px-6">
+            <p className="text-center text-sm text-error">
+              {audioQuiz.message}
+            </p>
+            <button
+              onClick={handleBackToStart}
+              className="text-primary underline"
+            >
+              スタートに戻る
+            </button>
+          </div>
+        )}
+
+        {audioQuiz?.status === "ready" && (
+          <AudioQuizPlayer
+            session={audioQuiz.session}
+            deckNameMap={deckNameMap}
+            onExit={handleBackToStart}
+          />
+        )}
       </div>
     );
   }
