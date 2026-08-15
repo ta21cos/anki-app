@@ -4,6 +4,7 @@ import { cloudflareAccess } from "@hono/cloudflare-access";
 import { and, asc, count, eq, gte, inArray, lte } from "drizzle-orm";
 import { getDb, type Env } from "./db";
 import { cards, decks } from "./schema";
+import { audioApp } from "./audio";
 
 type Variables = { ownerId: string };
 
@@ -64,6 +65,8 @@ function pickCardFields(body: Record<string, unknown>): CardPatch {
     CARD_FIELDS.filter((key) => key in body).map((key) => [key, body[key]]),
   ) as CardPatch;
 }
+
+app.route("/audio", audioApp);
 
 app.get("/decks", async (c) => {
   const db = getDb(c.env);
