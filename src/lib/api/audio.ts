@@ -1,5 +1,6 @@
 import { apiFetch } from "./client";
 import { stripHtmlToPlainText } from "@/lib/tts";
+import type { Lang } from "@/lib/lang";
 
 export type AudioManifestItem = {
   cardId: string;
@@ -20,9 +21,18 @@ export const AUDIO_QUIZ_MAX_CARDS = 20;
 
 const SEGMENT_BATCH_SIZE = 8;
 
-type QuizCard = { id: string; deckId: string; front: string; back: string };
+export type QuizCard = {
+  id: string;
+  deckId: string;
+  front: string;
+  back: string;
+  frontLang: Lang;
+  backLang: Lang;
+};
 
-// 表面・裏面を TTS セグメント化（サーバー側で KV キャッシュ）した後、
+type SegmentItem = { text: string; lang: Lang };
+
+// 表面・裏面を言語付きで TTS セグメント化（サーバー側で KV キャッシュ）した後、
 // 1 本の番組 mp3 に合成する。バッチ分割は Workers のサブリクエスト
 // 上限に合わせたサーバー側の制約に従う。
 export async function prepareAudioQuiz(
@@ -30,30 +40,30 @@ export async function prepareAudioQuiz(
   pauseSeconds: number,
   onProgress?: (done: number, total: number) => void,
 ): Promise<AudioSession> {
-  const texts = cards.flatMap((card) => [
-    stripHtmlToPlainText(card.front),
-    stripHtmlToPlainText(card.back),
+  const items: SegmentItem[] = cards.flatMap((card) => [
+    { text: stripHtmlToPlainText(card.front), lang: card.frontLang },
+    { text: stripHtmlToPlainText(card.back), lang: card.backLang },
   ]);
 
   const batches = Array.from(
-    { length: Math.ceil(texts.length / SEGMENT_BATCH_SIZE) },
-    (_, i) => texts.slice(i * SEGMENT_BATCH_SIZE, (i + 1) * SEGMENT_BATCH_SIZE),
+    { length: Math.ceil(items.length / SEGMENT_BATCH_SIZE) },
+    (_, i) => items.slice(i * SEGMENT_BATCH_SIZE, (i + 1) * SEGMENT_BATCH_SIZE),
   );
 
   const keys: string[] = [];
   for (const [index, batch] of batches.entries()) {
     const result = await apiFetch<{ keys: string[] }>("/audio/segments", {
       method: "POST",
-      body: JSON.stringify({ texts: batch }),
+      body: JSON.stringify({ items: batch }),
     });
     keys.push(...result.keys);
     onProgress?.(
-      Math.min((index + 1) * SEGMENT_BATCH_SIZE, texts.length),
-      texts.length,
+      Math.min((index + 1) * SEGMENT_BATCH_SIZE, items.length),
+      items.length,
     );
   }
 
-  const items = cards.map((card, i) => ({
+  const compileItems = cards.map((card, i) => ({
     cardId: card.id,
     deckId: card.deckId,
     front: card.front,
@@ -63,7 +73,7 @@ export async function prepareAudioQuiz(
 
   return apiFetch<AudioSession>("/audio/compile", {
     method: "POST",
-    body: JSON.stringify({ items, pauseSeconds }),
+    body: JSON.stringify({ items: compileItems, pauseSeconds }),
   });
 }
 

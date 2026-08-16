@@ -3,7 +3,7 @@ import { HTTPException } from "hono/http-exception";
 import { cloudflareAccess } from "@hono/cloudflare-access";
 import { and, asc, count, eq, gte, inArray, lte } from "drizzle-orm";
 import { getDb, type Env } from "./db";
-import { cards, decks } from "./schema";
+import { cards, decks, isLang, type Lang } from "./schema";
 import { audioApp } from "./audio";
 
 type Variables = { ownerId: string };
@@ -81,7 +81,13 @@ app.post("/decks", async (c) => {
   const db = getDb(c.env);
   const ownerId = c.get("ownerId");
   const { deck, cards: cardList } = (await c.req.json()) as {
-    deck: { id: string; name: string; createdAt: number };
+    deck: {
+      id: string;
+      name: string;
+      createdAt: number;
+      frontLang?: unknown;
+      backLang?: unknown;
+    };
     cards: Array<Omit<typeof cards.$inferInsert, "ownerId">>;
   };
 
@@ -90,6 +96,8 @@ app.post("/decks", async (c) => {
     ownerId,
     name: deck.name,
     createdAt: deck.createdAt,
+    frontLang: isLang(deck.frontLang) ? deck.frontLang : "en",
+    backLang: isLang(deck.backLang) ? deck.backLang : "en",
   });
 
   if (cardList.length > 0) {
@@ -141,15 +149,24 @@ app.patch("/decks/:deckId", async (c) => {
   const db = getDb(c.env);
   const deckId = c.req.param("deckId");
   const body = (await c.req.json()) as {
-    name?: string;
-    includeInDaily?: boolean;
+    name?: unknown;
+    includeInDaily?: unknown;
+    frontLang?: unknown;
+    backLang?: unknown;
   };
 
-  const patch: Partial<{ name: string; includeInDaily: boolean }> = {
+  const patch: Partial<{
+    name: string;
+    includeInDaily: boolean;
+    frontLang: Lang;
+    backLang: Lang;
+  }> = {
     ...(typeof body.name === "string" ? { name: body.name } : {}),
     ...(typeof body.includeInDaily === "boolean"
       ? { includeInDaily: body.includeInDaily }
       : {}),
+    ...(isLang(body.frontLang) ? { frontLang: body.frontLang } : {}),
+    ...(isLang(body.backLang) ? { backLang: body.backLang } : {}),
   };
 
   if (Object.keys(patch).length > 0) {

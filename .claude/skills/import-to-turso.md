@@ -11,7 +11,7 @@ TSV/CSV ファイルを anki-app の Turso DB に直接インポートするス�
 ## 使い方
 
 ```
-/import-to-turso <file-path> [deck-name]
+/import-to-turso <file-path> [deck-name] [--front-lang ja|en] [--back-lang ja|en]
 ```
 
 ## 実行手順
@@ -20,13 +20,14 @@ TSV/CSV ファイルを anki-app の Turso DB に直接インポートするス�
 2. 以下のコマンドを実行する:
 
 ```bash
-source .env.local && bun scripts/import-tsv.ts <file-path> [deck-name]
+source .env.local && bun scripts/import-tsv.ts <file-path> [deck-name] [--front-lang ja|en] [--back-lang ja|en]
 ```
 
 - `<file-path>`: インポートする TSV/CSV ファイルのパス
 - `[deck-name]`: デッキ名（省略時はファイル名を使用）
+- `--front-lang` / `--back-lang`: 表面・裏面の読み上げ言語（省略時は en）。日本語 → 英語カードなら `--front-lang ja --back-lang en`
 - 既存のデバイス ID が1つなら自動使用、複数なら選択プロンプトが出る
-- TSV 形式: タブ区切り、1列目=front（誤用）、2列目=back（正しい表現）
+- TSV 形式: タブ区切り、1列目=front、2列目=back
 
 ## ファイルの場所
 

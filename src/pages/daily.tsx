@@ -36,7 +36,10 @@ const DEFAULT_DAILY_LIMIT = 20;
 const MIN_LIMIT = 5;
 const MAX_LIMIT = 100;
 const STEP = 5;
-const AUDIO_QUIZ_PAUSE_SECONDS = 6;
+// 想起ポーズ（日本語 → ポーズ → 英語 → ポーズ）の秒数。単語カードなら短く、
+// 文章の英作文なら長めが要るので、開始画面で選べるようにする。
+const AUDIO_QUIZ_PAUSE_OPTIONS = [3, 6, 10] as const;
+const DEFAULT_AUDIO_QUIZ_PAUSE_SECONDS = 6;
 
 type Mode = "start" | "card" | "audio" | "audioquiz";
 type Order = "default" | "random";
@@ -66,6 +69,9 @@ export function DailyPage() {
     "card" | "audio" | "audioquiz"
   >("card");
   const [audioQuiz, setAudioQuiz] = useState<AudioQuizState | null>(null);
+  const [pauseSeconds, setPauseSeconds] = useState<number>(
+    DEFAULT_AUDIO_QUIZ_PAUSE_SECONDS,
+  );
   const [selectedOrder, setSelectedOrder] = useState<Order>("default");
   const [dailyLimit, setDailyLimit] = useState(DEFAULT_DAILY_LIMIT);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -113,6 +119,17 @@ export function DailyPage() {
   const deckNameMap = decks
     ? Object.fromEntries(decks.map((d) => [d.id, d.name]))
     : {};
+  const deckLangMap = decks
+    ? Object.fromEntries(
+        decks.map((d) => [
+          d.id,
+          { frontLang: d.frontLang, backLang: d.backLang },
+        ]),
+      )
+    : {};
+  const deckBackLangMap = Object.fromEntries(
+    Object.entries(deckLangMap).map(([id, langs]) => [id, langs.backLang]),
+  );
 
   const totalDue = dueCards?.length ?? 0;
 
@@ -179,8 +196,10 @@ export function DailyPage() {
           deckId: c.deckId,
           front: c.front,
           back: c.back,
+          frontLang: deckLangMap[c.deckId]?.frontLang ?? "en",
+          backLang: deckLangMap[c.deckId]?.backLang ?? "en",
         })),
-        AUDIO_QUIZ_PAUSE_SECONDS,
+        pauseSeconds,
         (done, total) => setAudioQuiz({ status: "preparing", done, total }),
       );
       setAudioQuiz({ status: "ready", session });
@@ -191,7 +210,7 @@ export function DailyPage() {
           err instanceof Error ? err.message : "音声の準備に失敗しました",
       });
     }
-  }, [dueCards, dailyLimit, selectedOrder]);
+  }, [dueCards, dailyLimit, selectedOrder, pauseSeconds, deckLangMap]);
 
   const handleStart = useCallback(() => {
     if (selectedMode === "audioquiz") {
@@ -357,11 +376,35 @@ export function DailyPage() {
             </div>
             {selectedMode === "audioquiz" && (
               <p className="mt-1.5 text-xs text-muted-foreground">
-                表面 → 想起ポーズ → 裏面を読み上げる番組を作ります（最大{" "}
+                表面 → ポーズ → 裏面 → ポーズ を繰り返す番組を作ります（最大{" "}
                 {AUDIO_QUIZ_MAX_CARDS} 枚）。画面をロックしても再生が続きます
               </p>
             )}
           </div>
+
+          {selectedMode === "audioquiz" && (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                想起ポーズ
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                {AUDIO_QUIZ_PAUSE_OPTIONS.map((seconds) => (
+                  <button
+                    key={seconds}
+                    onClick={() => setPauseSeconds(seconds)}
+                    className={cn(
+                      "rounded-lg border-2 p-3 text-sm font-medium transition-colors",
+                      pauseSeconds === seconds
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border text-muted-foreground hover:border-muted-foreground/30",
+                    )}
+                  >
+                    {seconds} 秒
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="mb-2 block text-sm font-medium text-muted-foreground">
@@ -463,6 +506,7 @@ export function DailyPage() {
         <ListenReviewMode
           cards={limitedCards}
           deckNameMap={deckNameMap}
+          deckBackLangMap={deckBackLangMap}
           onComplete={handleAudioComplete}
         />
       </div>

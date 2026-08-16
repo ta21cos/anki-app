@@ -1,3 +1,4 @@
+import { formatLangPair } from "@/lib/lang";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
@@ -90,7 +91,15 @@ function DeckItem({ deck }: { deck: Deck }) {
       >
         <div className="min-w-0">
           <h2 className="font-medium">{deck.name}</h2>
-          <p className="text-sm text-muted-foreground">{cardCount} 枚</p>
+          <p className="text-sm text-muted-foreground">
+            {cardCount} 枚
+            <span
+              className="ml-2 rounded border px-1.5 py-0.5 text-xs"
+              aria-label={`読み上げ言語 ${formatLangPair(deck.frontLang, deck.backLang)}`}
+            >
+              {formatLangPair(deck.frontLang, deck.backLang)}
+            </span>
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {dueCount > 0 && (

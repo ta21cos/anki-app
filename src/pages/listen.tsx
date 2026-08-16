@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Link, useParams } from "@tanstack/react-router";
 import { useDeck, useDeckCards, type Card } from "@/lib/api/hooks";
 import { stripHtmlToPlainText, speak, stopSpeaking } from "@/lib/tts";
+import type { Lang } from "@/lib/lang";
 import { CardViewer } from "@/components/card-viewer";
 import {
   ArrowLeft,
@@ -38,6 +39,7 @@ export function ListenPage() {
   const speedRef = useRef(speedIndex);
   const currentIndexRef = useRef(currentIndex);
   const cardsRef = useRef<Card[] | null>(null);
+  const backLangRef = useRef<Lang>("en");
 
   useEffect(() => {
     autoModeRef.current = autoMode;
@@ -54,6 +56,10 @@ export function ListenPage() {
 
   const { data: deck, isLoading: deckLoading } = useDeck(deckId);
   const { data: cards, isLoading: cardsLoading } = useDeckCards(deckId);
+
+  useEffect(() => {
+    backLangRef.current = deck?.backLang ?? "en";
+  }, [deck]);
 
   useEffect(() => {
     cardsRef.current = cards ?? null;
@@ -94,6 +100,7 @@ export function ListenPage() {
 
     setIsPlaying(true);
     speak(text, {
+      lang: backLangRef.current,
       rate: SPEED_OPTIONS[speedRef.current].rate,
       onEnd: () => {
         if (

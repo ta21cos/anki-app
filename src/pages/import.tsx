@@ -2,6 +2,8 @@ import { useState, useCallback, useRef } from "react";
 import { Upload, CheckCircle2, AlertCircle, FileUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { importFile, type ImportResult } from "@/lib/importer";
+import { LangPairSelector } from "@/components/lang-pair-selector";
+import type { Lang } from "@/lib/lang";
 import { cn } from "@/lib/utils";
 
 type ImportState =
@@ -13,6 +15,10 @@ type ImportState =
 export function ImportPage() {
   const [state, setState] = useState<ImportState>({ status: "idle" });
   const [deckName, setDeckName] = useState("");
+  const [langs, setLangs] = useState<{ frontLang: Lang; backLang: Lang }>({
+    frontLang: "en",
+    backLang: "en",
+  });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -39,7 +45,7 @@ export function ImportPage() {
 
     setState({ status: "importing" });
     try {
-      const result = await importFile(selectedFile, deckName.trim());
+      const result = await importFile(selectedFile, deckName.trim(), langs);
       setState({ status: "success", result });
       setSelectedFile(null);
       setDeckName("");
@@ -127,6 +133,15 @@ export function ImportPage() {
               onChange={(e) => setDeckName(e.target.value)}
               className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               placeholder="デッキ名を入力"
+            />
+          </div>
+          <div>
+            <p className="mb-1 block text-sm font-medium">読み上げ言語</p>
+            <LangPairSelector
+              frontLang={langs.frontLang}
+              backLang={langs.backLang}
+              onChange={setLangs}
+              idPrefix="import-lang"
             />
           </div>
           <Button

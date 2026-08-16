@@ -9,6 +9,7 @@ import {
 } from "@/lib/fsrs";
 import { rateCardApi } from "@/lib/api/mutations";
 import { stripHtmlToPlainText, speak, stopSpeaking } from "@/lib/tts";
+import type { Lang } from "@/lib/lang";
 import { CardViewer } from "@/components/card-viewer";
 import { RatingButtons } from "@/components/rating-buttons";
 import { CardEditButton } from "@/components/card-edit-button";
@@ -27,12 +28,15 @@ const SPEED_OPTIONS = [
 interface ListenReviewModeProps {
   cards: Card[];
   deckNameMap?: Record<string, string>;
+  // デッキ ID → 裏面の読み上げ言語。未指定のデッキは英語として読む。
+  deckBackLangMap?: Record<string, Lang>;
   onComplete: (reviewedCount: number) => void;
 }
 
 export function ListenReviewMode({
   cards,
   deckNameMap,
+  deckBackLangMap,
   onComplete,
 }: ListenReviewModeProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -84,13 +88,14 @@ export function ListenReviewMode({
 
     setIsPlaying(true);
     speak(text, {
+      lang: deckBackLangMap?.[currentCard.deckId] ?? "en",
       rate: SPEED_OPTIONS[speedRef.current].rate,
       onEnd: () => {
         setIsPlaying(false);
         setHasPlayed(true);
       },
     });
-  }, [currentCard, isPlaying]);
+  }, [currentCard, isPlaying, deckBackLangMap]);
 
   const handleRate = useCallback(
     async (grade: Grade) => {

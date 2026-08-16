@@ -1,10 +1,13 @@
 import useSWR from "swr";
 import { apiFetch } from "./client";
+import type { Lang } from "@/lib/lang";
 
 export type Deck = {
   id: string;
   name: string;
   includeInDaily: boolean;
+  frontLang: Lang;
+  backLang: Lang;
   createdAt: number;
 };
 
