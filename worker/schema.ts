@@ -6,7 +6,7 @@ import {
   text,
 } from "drizzle-orm/sqlite-core";
 
-// 読み上げ言語。表面・裏面それぞれを TTS / Web Speech に渡す際のロケール選択に使う。
+// NOTE: 読み上げ言語。表裏それぞれの TTS / Web Speech のロケール選択に使う。
 export const LANGS = ["en", "ja"] as const;
 export type Lang = (typeof LANGS)[number];
 

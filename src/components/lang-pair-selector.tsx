@@ -10,8 +10,8 @@ interface LangPairSelectorProps {
   className?: string;
 }
 
-// 表面・裏面の読み上げ言語を選ぶ。読み上げ・音声クイズの TTS ロケール、
-// および Web Speech のロケール選択に使われる。
+// NOTE: 表面・裏面の読み上げ言語を選ぶ。読み上げ・音声クイズの TTS と
+// Web Speech のロケール選択に使われる。
 export function LangPairSelector({
   frontLang,
   backLang,

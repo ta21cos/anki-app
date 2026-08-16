@@ -32,9 +32,8 @@ export type QuizCard = {
 
 type SegmentItem = { text: string; lang: Lang };
 
-// 表面・裏面を言語付きで TTS セグメント化（サーバー側で KV キャッシュ）した後、
-// 1 本の番組 mp3 に合成する。バッチ分割は Workers のサブリクエスト
-// 上限に合わせたサーバー側の制約に従う。
+// NOTE: 表面・裏面を言語付きで TTS セグメント化した後、1 本の番組 mp3 に
+// 合成する。バッチ分割は Workers のサブリクエスト上限に合わせた制約に従う。
 export async function prepareAudioQuiz(
   cards: QuizCard[],
   pauseSeconds: number,

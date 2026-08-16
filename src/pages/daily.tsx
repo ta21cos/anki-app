@@ -36,8 +36,8 @@ const DEFAULT_DAILY_LIMIT = 20;
 const MIN_LIMIT = 5;
 const MAX_LIMIT = 100;
 const STEP = 5;
-// 想起ポーズ（日本語 → ポーズ → 英語 → ポーズ）の秒数。単語カードなら短く、
-// 文章の英作文なら長めが要るので、開始画面で選べるようにする。
+// NOTE: 想起ポーズの秒数。単語なら短く、文章の英作文なら長めが要るので
+// 開始画面で選べるようにする。
 const AUDIO_QUIZ_PAUSE_OPTIONS = [3, 6, 10] as const;
 const DEFAULT_AUDIO_QUIZ_PAUSE_SECONDS = 6;
 

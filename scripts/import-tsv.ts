@@ -58,22 +58,23 @@ function parseArgs(argv: string[]): {
       continue;
     }
     if (arg === "--owner") {
-      const value = argv[i + 1];
-      if (!value) {
+      const ownerArg = argv[i + 1];
+      if (!ownerArg) {
         console.error("--owner には owner_id を指定してください");
         process.exit(1);
       }
-      flags.owner = value;
+      flags.owner = ownerArg;
       i += 1;
       continue;
     }
     if (arg === "--front-lang" || arg === "--back-lang") {
-      const value = argv[i + 1];
-      if (!(LANGS as readonly string[]).includes(value)) {
+      const langArg = argv[i + 1];
+      if (!(LANGS as readonly string[]).includes(langArg)) {
         console.error(`${arg} には ${LANGS.join(" | ")} を指定してください`);
         process.exit(1);
       }
-      langs[arg === "--front-lang" ? "frontLang" : "backLang"] = value as Lang;
+      langs[arg === "--front-lang" ? "frontLang" : "backLang"] =
+        langArg as Lang;
       i += 1;
       continue;
     }
@@ -127,7 +128,7 @@ async function prompt(question: string): Promise<string> {
 
 async function getOwnerId(): Promise<string> {
   if (owner) return owner;
-  // e2e テスト（X-Dev-Owner: e2e-<uuid>）が残した owner は候補から外す
+  // NOTE: e2e テスト（X-Dev-Owner: e2e-<uuid>）が残した owner は候補から外す
   const result = await client.execute(
     "SELECT DISTINCT owner_id FROM decks WHERE owner_id NOT LIKE 'e2e-%' UNION SELECT DISTINCT owner_id FROM cards WHERE owner_id NOT LIKE 'e2e-%'",
   );
@@ -168,11 +169,11 @@ async function findDeck(
   ownerId: string,
   name: string,
 ): Promise<{ id: string; cardCount: number } | null> {
-  const result = await client.execute({
+  const deckRows = await client.execute({
     sql: "SELECT d.id AS id, (SELECT count(*) FROM cards c WHERE c.deck_id = d.id) AS card_count FROM decks d WHERE d.owner_id = ? AND d.name = ? ORDER BY d.created_at LIMIT 1",
     args: [ownerId, name],
   });
-  const row = result.rows[0];
+  const row = deckRows.rows[0];
   if (!row) return null;
   return { id: row.id as string, cardCount: Number(row.card_count) };
 }
@@ -181,11 +182,11 @@ async function loadExistingBacks(
   ownerId: string,
   deckId: string,
 ): Promise<Set<string>> {
-  const result = await client.execute({
+  const cardRows = await client.execute({
     sql: "SELECT back FROM cards WHERE owner_id = ? AND deck_id = ?",
     args: [ownerId, deckId],
   });
-  return new Set(result.rows.map((row) => normalizeBack(row.back as string)));
+  return new Set(cardRows.rows.map((row) => normalizeBack(row.back as string)));
 }
 
 async function main() {
@@ -230,8 +231,7 @@ async function main() {
   const batchSize = 50;
   for (let i = 0; i < newCards.length; i += batchSize) {
     const batch = newCards.slice(i, i + batchSize);
-    // due をファイル内の行順に 1ms ずつずらし、期限順で並べたときに
-    // 教材の順序（レッスン順）が保たれるようにする
+    // NOTE: due を行順に 1ms ずつずらし、期限順でも教材の順序が保たれるようにする
     const stmts = batch.map((card, offset) => ({
       sql: "INSERT INTO cards (id, owner_id, deck_id, front, back, due, stability, difficulty, reps, lapses, state, last_review, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, NULL, ?)",
       args: [

@@ -28,7 +28,7 @@ const SPEED_OPTIONS = [
 interface ListenReviewModeProps {
   cards: Card[];
   deckNameMap?: Record<string, string>;
-  // デッキ ID → 裏面の読み上げ言語。未指定のデッキは英語として読む。
+  // NOTE: デッキ ID → 裏面の読み上げ言語。未指定のデッキは英語として読む。
   deckBackLangMap?: Record<string, Lang>;
   onComplete: (reviewedCount: number) => void;
 }

@@ -9,8 +9,8 @@ import silenceMp3 from "./silence-1s.mp3";
 // フレーム境界でのバイト連結がそのまま有効な mp3 になる。
 const TTS_MODEL = "gpt-4o-mini-tts";
 const TTS_VOICE = "alloy";
-// alloy は多言語対応だが、言語を明示しないと日本語の短文を英語風に読むことが
-// あるため、言語ごとに読み方の指示を添える。
+// NOTE: alloy は多言語対応だが、言語を明示しないと日本語の短文を英語風に
+// 読むことがあるため、言語ごとに読み方の指示を添える。
 const TTS_INSTRUCTIONS: Record<Lang, string> = {
   en: "Speak clearly in natural American English at a moderate pace.",
   ja: "自然な日本語で、はっきりと落ち着いた速さで読み上げてください。",
@@ -73,7 +73,7 @@ function isSegmentItem(value: unknown): value is SegmentItem {
   );
 }
 
-// テキスト群を言語付きで TTS 化して KV にキャッシュする。バッチ上限は
+// NOTE: テキスト群を言語付きで TTS 化して KV にキャッシュする。バッチ上限は
 // Workers のサブリクエスト上限（無料プランで 50/リクエスト）に収めるため。
 audioApp.post("/segments", async (c) => {
   const { items } = (await c.req.json()) as { items: unknown };
@@ -121,10 +121,8 @@ type ManifestItem = {
   end: number;
 };
 
-// セグメントを [プロンプト][想起ポーズ][答え][間隔] の順に連結して
-// 1 本の mp3 に合成する。答えの後の間隔も想起ポーズと同じ長さにして、
-// 「日本語 → N 秒 → 英語 → N 秒 → 次の日本語…」の一定リズムで流す。1 ファイルにするのは、iOS がロック画面で
-// speechSynthesis / Web Audio を止めるため（audio 要素の連続再生のみ生き残る）。
+// NOTE: [プロンプト][ポーズ][答え][ポーズ] を連結して 1 本の mp3 にする。
+// 1 ファイルなのは iOS がロック画面で speechSynthesis / Web Audio を止めるため。
 audioApp.post("/compile", async (c) => {
   const { items, pauseSeconds } = (await c.req.json()) as {
     items: CompileItem[];

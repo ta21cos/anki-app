@@ -1,4 +1,4 @@
-// デッキの表面・裏面の読み上げ言語。worker/schema.ts の LANGS と同じ値を持つ。
+// NOTE: デッキの表面・裏面の読み上げ言語。worker/schema.ts の LANGS と同じ値。
 export const LANGS = ["en", "ja"] as const;
 export type Lang = (typeof LANGS)[number];
 
@@ -12,7 +12,7 @@ export const LANG_SHORT_LABELS: Record<Lang, string> = {
   ja: "日",
 };
 
-// Web Speech API に渡す BCP 47 ロケール
+// NOTE: Web Speech API に渡す BCP 47 ロケール
 export const SPEECH_LOCALES: Record<Lang, string> = {
   en: "en-US",
   ja: "ja-JP",
