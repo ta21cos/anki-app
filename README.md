@@ -139,7 +139,8 @@ e2e/                  # Playwright テスト
 scripts/
   migrate-to-owner.ts # device_id → owner_id 移行（1 回だけ実行）
   migrate.ts          # drizzle/ の migration を Turso に適用
-  import-tsv.ts       # TSV/CSV を DB に直接インポート（--front-lang / --back-lang で言語指定）
+  import-tsv.ts       # TSV/CSV を DB に直接インポート（--front-lang / --back-lang / --append / --owner）
+  cleanup-e2e-data.ts # e2e が残した e2e-* owner のデータを削除
 drizzle/              # migration ファイル（drizzle-kit generate の出力）
 ```
 

@@ -9,7 +9,8 @@
  * - --front-lang / --back-lang を省略すると英語（en）になる
  * - --append を付けると、同名の既存デッキにカードを追加する（裏面が同じカードはスキップ）。
  *   既存デッキがなければ新規作成する
- * - 既存のowner が1つならそれを使う、2つ以上なら選択
+ * - --owner <owner_id> で投入先の owner を指定できる。省略時は、e2e の残骸
+ *   （e2e-* owner）を除いた既存 owner が 1 つならそれを使い、2 つ以上なら選択する
  */
 
 import { createClient } from "@libsql/client";
@@ -39,9 +40,13 @@ function parseArgs(argv: string[]): {
   frontLang: Lang;
   backLang: Lang;
   append: boolean;
+  owner: string | null;
 } {
   const positional: string[] = [];
-  const flags = { append: false };
+  const flags: { append: boolean; owner: string | null } = {
+    append: false,
+    owner: null,
+  };
   const langs: { frontLang: Lang; backLang: Lang } = {
     frontLang: "en",
     backLang: "en",
@@ -50,6 +55,16 @@ function parseArgs(argv: string[]): {
     const arg = argv[i];
     if (arg === "--append") {
       flags.append = true;
+      continue;
+    }
+    if (arg === "--owner") {
+      const value = argv[i + 1];
+      if (!value) {
+        console.error("--owner には owner_id を指定してください");
+        process.exit(1);
+      }
+      flags.owner = value;
+      i += 1;
       continue;
     }
     if (arg === "--front-lang" || arg === "--back-lang") {
@@ -67,7 +82,7 @@ function parseArgs(argv: string[]): {
   const [filePath, deckNameArg] = positional;
   if (!filePath) {
     console.error(
-      "Usage: bun scripts/import-tsv.ts <file-path> [deck-name] [--front-lang ja|en] [--back-lang ja|en] [--append]",
+      "Usage: bun scripts/import-tsv.ts <file-path> [deck-name] [--front-lang ja|en] [--back-lang ja|en] [--append] [--owner <owner_id>]",
     );
     process.exit(1);
   }
@@ -80,7 +95,7 @@ function parseArgs(argv: string[]): {
   };
 }
 
-const { filePath, deckName, frontLang, backLang, append } = parseArgs(
+const { filePath, deckName, frontLang, backLang, append, owner } = parseArgs(
   process.argv.slice(2),
 );
 
@@ -111,8 +126,10 @@ async function prompt(question: string): Promise<string> {
 }
 
 async function getOwnerId(): Promise<string> {
+  if (owner) return owner;
+  // e2e テスト（X-Dev-Owner: e2e-<uuid>）が残した owner は候補から外す
   const result = await client.execute(
-    "SELECT DISTINCT owner_id FROM decks UNION SELECT DISTINCT owner_id FROM cards",
+    "SELECT DISTINCT owner_id FROM decks WHERE owner_id NOT LIKE 'e2e-%' UNION SELECT DISTINCT owner_id FROM cards WHERE owner_id NOT LIKE 'e2e-%'",
   );
   const ids = result.rows.map((r) => r.owner_id as string);
   const unique = [...new Set(ids)];
