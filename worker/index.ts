@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { cloudflareAccess } from "@hono/cloudflare-access";
-import { and, asc, count, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, asc, count, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { getDb, type Env } from "./db";
 import { cards, decks, isLang, type Lang } from "./schema";
 import { audioApp } from "./audio";
@@ -68,12 +68,15 @@ function pickCardFields(body: Record<string, unknown>): CardPatch {
 
 app.route("/audio", audioApp);
 
+// NOTE: 名前順で返す。デッキ名の `親::子` 記法をクライアントが階層として
+// 描くため、同じグループが隣り合っている必要がある。
 app.get("/decks", async (c) => {
   const db = getDb(c.env);
   const result = await db
     .select()
     .from(decks)
-    .where(eq(decks.ownerId, c.get("ownerId")));
+    .where(eq(decks.ownerId, c.get("ownerId")))
+    .orderBy(asc(decks.name));
   return c.json(result);
 });
 
@@ -132,6 +135,23 @@ app.post("/decks/merge", async (c) => {
     .where(and(eq(decks.ownerId, ownerId), inArray(decks.id, toMerge)));
 
   return c.json({ ok: true });
+});
+
+// NOTE: 全デッキの枚数と復習待ち数を 1 リクエストで返す。デッキごとに
+// 数える実装ではデッキ数に比例してリクエストが増えるため。
+app.get("/decks/counts", async (c) => {
+  const db = getDb(c.env);
+  const before = Number(c.req.query("due_before") ?? Date.now());
+  const rows = await db
+    .select({
+      deckId: cards.deckId,
+      total: count(),
+      due: sql<number>`sum(case when ${cards.due} <= ${before} then 1 else 0 end)`,
+    })
+    .from(cards)
+    .where(eq(cards.ownerId, c.get("ownerId")))
+    .groupBy(cards.deckId);
+  return c.json(rows.map((row) => ({ ...row, due: Number(row.due) })));
 });
 
 app.get("/decks/:deckId", async (c) => {

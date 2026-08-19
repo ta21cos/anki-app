@@ -30,6 +30,8 @@ import {
   Shuffle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DeckGroupRow } from "@/components/deck-group-row";
+import { groupDecks, selectionState } from "@/lib/deck-tree";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_DAILY_LIMIT = 20;
@@ -69,6 +71,9 @@ export function DailyPage() {
     "card" | "audio" | "audioquiz"
   >("card");
   const [audioQuiz, setAudioQuiz] = useState<AudioQuizState | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
+    {},
+  );
   const [pauseSeconds, setPauseSeconds] = useState<number>(
     DEFAULT_AUDIO_QUIZ_PAUSE_SECONDS,
   );
@@ -269,30 +274,78 @@ export function DailyPage() {
               対象デッキ
             </label>
             <div className="space-y-2">
-              {decks.map((deck) => (
-                <label
-                  key={deck.id}
-                  className="flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 transition-colors hover:bg-accent"
-                >
-                  <input
-                    type="checkbox"
-                    checked={isDeckSelected(deck)}
-                    onChange={(e) =>
-                      setDeckOverrides((prev) => ({
-                        ...prev,
-                        [deck.id]: e.target.checked,
-                      }))
-                    }
-                    className="size-4 accent-primary"
-                  />
-                  <span className="min-w-0 flex-1 truncate text-sm">
-                    {deck.name}
-                  </span>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {dueCountByDeck[deck.id] ?? 0} 枚
-                  </span>
-                </label>
-              ))}
+              {groupDecks(decks).map((group) => {
+                const groupName = group.name;
+                if (groupName === null) {
+                  return group.decks.map(({ deck, label }) => (
+                    <DeckCheckbox
+                      key={deck.id}
+                      label={label}
+                      dueCount={dueCountByDeck[deck.id] ?? 0}
+                      isSelected={isDeckSelected(deck)}
+                      onChange={(next) =>
+                        setDeckOverrides((prev) => ({
+                          ...prev,
+                          [deck.id]: next,
+                        }))
+                      }
+                    />
+                  ));
+                }
+
+                const groupDeckList = group.decks.map(({ deck }) => deck);
+                const isExpanded = expandedGroups[groupName] ?? false;
+                const groupDue = groupDeckList.reduce(
+                  (sum, deck) => sum + (dueCountByDeck[deck.id] ?? 0),
+                  0,
+                );
+
+                return (
+                  <div key={groupName} className="space-y-2">
+                    <DeckGroupRow
+                      name={groupName}
+                      deckCount={groupDeckList.length}
+                      dueCount={groupDue}
+                      isExpanded={isExpanded}
+                      onToggleExpanded={() =>
+                        setExpandedGroups((prev) => ({
+                          ...prev,
+                          [groupName]: !isExpanded,
+                        }))
+                      }
+                      selection={selectionState(
+                        groupDeckList.map(isDeckSelected),
+                      )}
+                      onSelectAll={(next) =>
+                        setDeckOverrides((prev) => ({
+                          ...prev,
+                          ...Object.fromEntries(
+                            groupDeckList.map((deck) => [deck.id, next]),
+                          ),
+                        }))
+                      }
+                    />
+                    {isExpanded && (
+                      <div className="space-y-2 pl-4">
+                        {group.decks.map(({ deck, label }) => (
+                          <DeckCheckbox
+                            key={deck.id}
+                            label={label}
+                            dueCount={dueCountByDeck[deck.id] ?? 0}
+                            isSelected={isDeckSelected(deck)}
+                            onChange={(next) =>
+                              setDeckOverrides((prev) => ({
+                                ...prev,
+                                [deck.id]: next,
+                              }))
+                            }
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
             <p className="mt-1.5 text-xs text-muted-foreground">
               初期値はデッキタブの設定です。ここでの変更は今回だけ有効です
@@ -733,4 +786,31 @@ function SessionSummaryList({
 
 function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, "").trim();
+}
+
+function DeckCheckbox({
+  label,
+  dueCount,
+  isSelected,
+  onChange,
+}: {
+  label: string;
+  dueCount: number;
+  isSelected: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 transition-colors hover:bg-accent">
+      <input
+        type="checkbox"
+        checked={isSelected}
+        onChange={(e) => onChange(e.target.checked)}
+        className="size-4 accent-primary"
+      />
+      <span className="min-w-0 flex-1 truncate text-sm">{label}</span>
+      <span className="shrink-0 text-xs text-muted-foreground">
+        {dueCount} 枚
+      </span>
+    </label>
+  );
 }
