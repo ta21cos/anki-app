@@ -20,12 +20,16 @@ English Scrum の Google ドキュメントから瞬間英作文用カードを�
 2. 下記「カード生成ガイド」に従い、教材 1 本につき subagent 1 つで `<slug>.sentences.tsv` / `<slug>.chunks.tsv` / `<slug>.vocab.txt` を `.claude-works/<branch-slug>/generated/` に生成する。Reading Series の場合は、既出語彙の一覧（`lesson-*.vocab.txt` の和集合）を渡し、未出語彙を優先させる。
 3. 機械検証する: 1 行 1 タブ、両側非空、HTML なし、表面に日本語を含む、裏面に日本語を含まない、chunk は 3 語以上、ファイル横断で英語裏面の重複なし。
 4. 目視でざっと確認し、文法解説の見出し（"to talk about general ability" のようなメタ記述）が混ざっていれば削る。
-5. `scripts/import-tsv.ts` で Turso に投入する。既存デッキに足すときは `--append`（同名デッキに追加し、裏面が重複するカードはスキップする）。
+5. `scripts/import-tsv.ts` で Turso に投入する。**教材 1 本につき文章とチャンクのデッキを 1 つずつ作る**（1 デッキ 20〜30 枚。1 セッションぶんに相当する）。まとめて 1 つの大きなデッキにはしない。
+
+デッキ名は `<種別> <コード> <短い主題>` の形にする。種別は `文章` / `チャンク`、コードは文法レッスンなら `L01`〜、Vocabulary Reading Series なら週番号で `R31`〜とする。主題は日本語で短く書く（例: `文章 L07 受動態`、`チャンク R32 語彙リーディング`）。種別を先頭に置くのは、デッキ一覧とセッション開始画面で文章とチャンクがそれぞれ固まって並ぶようにするためである。
 
 ```bash
-source .env.local && bun scripts/import-tsv.ts sentences.tsv "文章（English Scrum）" --front-lang ja --back-lang en --append
-source .env.local && bun scripts/import-tsv.ts chunks.tsv "チャンク（English Scrum）" --front-lang ja --back-lang en --append
+source .env.local && bun scripts/import-tsv.ts lesson-12.sentences.tsv "文章 L12 間接話法" --front-lang ja --back-lang en
+source .env.local && bun scripts/import-tsv.ts lesson-12.chunks.tsv "チャンク L12 間接話法" --front-lang ja --back-lang en
 ```
+
+チャンクのデッキは音声で使わない方針なので、投入後にデッキ一覧のチェックを外して `include_in_daily` を false にする。既存デッキへ追記する場合のみ `--append` を使う（同名デッキに追加し、裏面が重複するカードはスキップする）。
 
 # カード生成ガイド（日本語 → 英語）
 
