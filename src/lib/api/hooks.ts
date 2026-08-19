@@ -62,7 +62,7 @@ function fetchDeckCounts(path: string): Promise<DeckCounts[]> {
   return apiFetch<DeckCounts[]>(path);
 }
 
-// デッキ一覧の枚数・復習待ち数をまとめて取る
+// NOTE: デッキ一覧の枚数・復習待ち数をまとめて取る
 export function useDeckCounts(now: number) {
   return useSWR(`/decks/counts?due_before=${now}`, fetchDeckCounts);
 }
