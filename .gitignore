@@ -40,3 +40,10 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# Playwright
+/test-results/
+/playwright-report/
+
+# Claude Code working documents
+/.claude-works/
