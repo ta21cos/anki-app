@@ -1,4 +1,5 @@
 import { importDeck } from "@/lib/api/mutations";
+import type { Lang } from "@/lib/lang";
 import { parseTxt, type ParsedCard } from "./txt";
 import { parseCsv } from "./csv";
 import { parseApkg } from "./apkg";
@@ -12,6 +13,7 @@ export interface ImportResult {
 export async function importFile(
   file: File,
   deckName: string,
+  langs: { frontLang: Lang; backLang: Lang },
 ): Promise<ImportResult> {
   const lastDot = file.name.lastIndexOf(".");
   const ext =
@@ -53,7 +55,10 @@ export async function importFile(
     createdAt: now,
   }));
 
-  await importDeck({ id: deckId, name: deckName, createdAt: now }, cards);
+  await importDeck(
+    { id: deckId, name: deckName, createdAt: now, ...langs },
+    cards,
+  );
 
   return {
     deckName,

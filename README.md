@@ -9,6 +9,8 @@
 - **HTML カード** — `<mark>`, `<b>`, `<i>` 等のHTMLタグに対応。ハイライトや書式付きカードが作成可能
 - **統計ダッシュボード** — 今日の復習数、復習待ち、カード状態（新規 / 学習中 / 復習）の可視化
 - **デッキ管理** — 複数デッキの作成、デッキ間マージ機能
+- **読み上げ言語** — デッキごとに表面・裏面の言語（英語 / 日本語）を設定。読み上げ・音声クイズの TTS がその言語で読む
+- **音声クイズ** — 表面 → ポーズ → 裏面 → ポーズ を 1 本の mp3 に合成して連続再生。日本語 → 英語の瞬間英作文にも使える
 - **マルチデバイス** — Cloudflare Access でログインすれば、どの端末からも同じデータにアクセス可能
 
 ## Tech Stack
@@ -47,9 +49,23 @@ bun run build
 # Deploy
 bun run deploy
 
-# Run e2e tests
+# Run e2e tests（wrangler dev は Node 22 以上が必要）
 bunx playwright test
 ```
+
+## Database Migrations
+
+スキーマは `worker/schema.ts`、migration は `drizzle/` で管理する（drizzle-kit）。
+
+```bash
+# スキーマ変更後に migration ファイルを生成する
+bunx --bun drizzle-kit generate --name <name>
+
+# Turso に適用する（未適用分だけ実行される。何度実行しても安全）
+source .env.local && bun scripts/migrate.ts
+```
+
+`0000_init` は migration 導入前に手作業で作られていたスキーマと同一なので、`scripts/migrate.ts` は既存 DB に対しては 0000 を適用済みとして登録し、それ以降だけを実行する。
 
 ## Deployment Setup
 
@@ -96,6 +112,7 @@ Anki のエクスポートファイル（`.apkg`）をそのままインポー�
 ```
 worker/
   index.ts            # Hono API（全エンドポイント + Access JWT 検証）
+  audio.ts            # 音声クイズ用 TTS（OpenAI）と番組合成
   schema.ts           # Drizzle スキーマ（decks / cards）
   db.ts               # Turso クライアント生成
 src/
@@ -121,7 +138,10 @@ src/
 e2e/                  # Playwright テスト
 scripts/
   migrate-to-owner.ts # device_id → owner_id 移行（1 回だけ実行）
-  import-tsv.ts       # TSV/CSV を DB に直接インポート
+  migrate.ts          # drizzle/ の migration を Turso に適用
+  import-tsv.ts       # TSV/CSV を DB に直接インポート（--front-lang / --back-lang / --append / --owner）
+  cleanup-e2e-data.ts # e2e が残した e2e-* owner のデータを削除
+drizzle/              # migration ファイル（drizzle-kit generate の出力）
 ```
 
 ## License

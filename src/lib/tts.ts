@@ -1,3 +1,5 @@
+import { SPEECH_LOCALES, type Lang } from "@/lib/lang";
+
 export function stripHtmlToPlainText(html: string): string {
   const div = document.createElement("div");
   div.innerHTML = html;
@@ -9,11 +11,11 @@ export function stripHtmlToPlainText(html: string): string {
 
 export function speak(
   text: string,
-  options?: { rate?: number; onEnd?: () => void },
+  options?: { lang?: Lang; rate?: number; onEnd?: () => void },
 ): SpeechSynthesisUtterance {
   speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "en-US";
+  utterance.lang = SPEECH_LOCALES[options?.lang ?? "en"];
   utterance.rate = options?.rate ?? 1.0;
   if (options?.onEnd) {
     utterance.onend = options.onEnd;

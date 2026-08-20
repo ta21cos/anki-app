@@ -6,6 +6,16 @@ import {
   text,
 } from "drizzle-orm/sqlite-core";
 
+// NOTE: 読み上げ言語。表裏それぞれの TTS / Web Speech のロケール選択に使う。
+export const LANGS = ["en", "ja"] as const;
+export type Lang = (typeof LANGS)[number];
+
+export function isLang(value: unknown): value is Lang {
+  return (
+    typeof value === "string" && (LANGS as readonly string[]).includes(value)
+  );
+}
+
 export const decks = sqliteTable(
   "decks",
   {
@@ -15,6 +25,8 @@ export const decks = sqliteTable(
     includeInDaily: integer("include_in_daily", { mode: "boolean" })
       .notNull()
       .default(true),
+    frontLang: text("front_lang", { enum: LANGS }).notNull().default("en"),
+    backLang: text("back_lang", { enum: LANGS }).notNull().default("en"),
     createdAt: integer("created_at").notNull(),
   },
   (table) => [index("decks_owner_idx").on(table.ownerId)],

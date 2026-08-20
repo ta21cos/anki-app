@@ -3,11 +3,14 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useDeck, useDeckCards } from "@/lib/api/hooks";
 import {
   updateDeckName,
+  setDeckLangs,
   updateCard,
   addCard,
   deleteCard,
   deleteDeck,
 } from "@/lib/api/mutations";
+import { LangPairSelector } from "@/components/lang-pair-selector";
+import type { Lang } from "@/lib/lang";
 import { ArrowLeft, Trash2, Check, Pencil, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -26,6 +29,7 @@ export function DeckEditPage() {
 
   const [name, setName] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savingLangs, setSavingLangs] = useState(false);
   const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
   const [editingCard, setEditingCard] = useState<EditingCard | null>(null);
   const [savingCard, setSavingCard] = useState(false);
@@ -38,6 +42,18 @@ export function DeckEditPage() {
     await updateDeckName(deckId, displayName.trim());
     setSaving(false);
     setName(null);
+  };
+
+  const handleChangeLangs = async (langs: {
+    frontLang: Lang;
+    backLang: Lang;
+  }) => {
+    setSavingLangs(true);
+    try {
+      await setDeckLangs(deckId, langs);
+    } finally {
+      setSavingLangs(false);
+    }
   };
 
   const handleDeleteCard = async (cardId: string) => {
@@ -144,6 +160,20 @@ export function DeckEditPage() {
             保存
           </Button>
         </div>
+      </section>
+
+      <section className="mb-6">
+        <p className="mb-1 block text-sm font-medium">読み上げ言語</p>
+        <LangPairSelector
+          frontLang={deck.frontLang}
+          backLang={deck.backLang}
+          onChange={handleChangeLangs}
+          disabled={savingLangs}
+          idPrefix="deck-edit-lang"
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          読み上げ・音声クイズで表面と裏面をどの言語で読むかを決めます
+        </p>
       </section>
 
       <section>

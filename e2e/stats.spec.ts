@@ -91,7 +91,9 @@ test.describe("Deck Merge", () => {
     await page.getByText("デッキをマージ").click();
 
     await page.getByRole("radio", { name: "マージ先デッキ" }).click();
-    await page.getByRole("checkbox", { name: "マージ元デッキ" }).click();
+    await page
+      .getByRole("checkbox", { name: "マージ元デッキ", exact: true })
+      .click();
 
     await page.getByText("マージ実行").click();
 

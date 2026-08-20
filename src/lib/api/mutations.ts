@@ -1,5 +1,6 @@
 import { mutate } from "swr";
 import { apiFetch } from "./client";
+import type { Lang } from "@/lib/lang";
 
 export async function rateCardApi(
   cardId: string,
@@ -84,8 +85,25 @@ export async function setDeckIncludeInDaily(
   await mutate((key) => typeof key === "string" && key.includes("/decks"));
 }
 
+export async function setDeckLangs(
+  deckId: string,
+  langs: { frontLang: Lang; backLang: Lang },
+) {
+  await apiFetch(`/decks/${deckId}`, {
+    method: "PATCH",
+    body: JSON.stringify(langs),
+  });
+  await mutate((key) => typeof key === "string" && key.includes("/decks"));
+}
+
 export async function importDeck(
-  deck: { id: string; name: string; createdAt: number },
+  deck: {
+    id: string;
+    name: string;
+    createdAt: number;
+    frontLang: Lang;
+    backLang: Lang;
+  },
   cards: Array<{
     id: string;
     deckId: string;

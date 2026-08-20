@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { Env } from "./db";
+import { isLang, type Lang } from "./schema";
 import silenceMp3 from "./silence-1s.mp3";
 
 // gpt-4o-mini-tts の mp3 出力は 24kHz mono 128kbps CBR。
@@ -8,6 +9,12 @@ import silenceMp3 from "./silence-1s.mp3";
 // フレーム境界でのバイト連結がそのまま有効な mp3 になる。
 const TTS_MODEL = "gpt-4o-mini-tts";
 const TTS_VOICE = "alloy";
+// NOTE: alloy は多言語対応だが、言語を明示しないと日本語の短文を英語風に
+// 読むことがあるため、言語ごとに読み方の指示を添える。
+const TTS_INSTRUCTIONS: Record<Lang, string> = {
+  en: "Speak clearly in natural American English at a moderate pace.",
+  ja: "自然な日本語で、はっきりと落ち着いた速さで読み上げてください。",
+};
 const MP3_BYTES_PER_SECOND = 16000;
 
 const MAX_SEGMENTS_PER_BATCH = 8;
@@ -17,10 +24,10 @@ type Variables = { ownerId: string };
 
 export const audioApp = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-async function segmentKey(text: string): Promise<string> {
+async function segmentKey(text: string, lang: Lang): Promise<string> {
   const digest = await crypto.subtle.digest(
     "SHA-256",
-    new TextEncoder().encode(`${TTS_MODEL}|${TTS_VOICE}|${text}`),
+    new TextEncoder().encode(`${TTS_MODEL}|${TTS_VOICE}|${lang}|${text}`),
   );
   const hex = [...new Uint8Array(digest)]
     .map((b) => b.toString(16).padStart(2, "0"))
@@ -28,7 +35,11 @@ async function segmentKey(text: string): Promise<string> {
   return `seg/${hex}.mp3`;
 }
 
-async function synthesize(env: Env, text: string): Promise<ArrayBuffer> {
+async function synthesize(
+  env: Env,
+  text: string,
+  lang: Lang,
+): Promise<ArrayBuffer> {
   const res = await fetch("https://api.openai.com/v1/audio/speech", {
     method: "POST",
     headers: {
@@ -39,6 +50,7 @@ async function synthesize(env: Env, text: string): Promise<ArrayBuffer> {
       model: TTS_MODEL,
       voice: TTS_VOICE,
       input: text,
+      instructions: TTS_INSTRUCTIONS[lang],
       response_format: "mp3",
     }),
   });
@@ -50,25 +62,41 @@ async function synthesize(env: Env, text: string): Promise<ArrayBuffer> {
   return res.arrayBuffer();
 }
 
-// テキスト群を TTS 化して KV にキャッシュする。バッチ上限は
+type SegmentItem = { text: string; lang: Lang };
+
+function isSegmentItem(value: unknown): value is SegmentItem {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as SegmentItem).text === "string" &&
+    isLang((value as SegmentItem).lang)
+  );
+}
+
+// NOTE: テキスト群を言語付きで TTS 化して KV にキャッシュする。バッチ上限は
 // Workers のサブリクエスト上限（無料プランで 50/リクエスト）に収めるため。
 audioApp.post("/segments", async (c) => {
-  const { texts } = (await c.req.json()) as { texts: string[] };
-  if (!Array.isArray(texts) || texts.length === 0) {
-    throw new HTTPException(400, { message: "texts is required" });
+  const { items } = (await c.req.json()) as { items: unknown };
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new HTTPException(400, { message: "items is required" });
   }
-  if (texts.length > MAX_SEGMENTS_PER_BATCH) {
+  if (items.length > MAX_SEGMENTS_PER_BATCH) {
     throw new HTTPException(400, {
-      message: `texts must be at most ${MAX_SEGMENTS_PER_BATCH}`,
+      message: `items must be at most ${MAX_SEGMENTS_PER_BATCH}`,
+    });
+  }
+  if (!items.every(isSegmentItem)) {
+    throw new HTTPException(400, {
+      message: "each item must have text and lang (en | ja)",
     });
   }
 
   const keys: string[] = [];
-  for (const text of texts) {
-    const key = await segmentKey(text);
+  for (const item of items) {
+    const key = await segmentKey(item.text, item.lang);
     const cached = await c.env.AUDIO_KV.get(key, "arrayBuffer");
     if (!cached) {
-      const audio = await synthesize(c.env, text);
+      const audio = await synthesize(c.env, item.text, item.lang);
       await c.env.AUDIO_KV.put(key, audio);
     }
     keys.push(key);
@@ -93,9 +121,8 @@ type ManifestItem = {
   end: number;
 };
 
-// セグメントを [プロンプト][想起ポーズ][答え][間隔] の順に連結して
-// 1 本の mp3 に合成する。1 ファイルにするのは、iOS がロック画面で
-// speechSynthesis / Web Audio を止めるため（audio 要素の連続再生のみ生き残る）。
+// NOTE: [プロンプト][ポーズ][答え][ポーズ] を連結して 1 本の mp3 にする。
+// 1 ファイルなのは iOS がロック画面で speechSynthesis / Web Audio を止めるため。
 audioApp.post("/compile", async (c) => {
   const { items, pauseSeconds } = (await c.req.json()) as {
     items: CompileItem[];
@@ -112,7 +139,7 @@ audioApp.post("/compile", async (c) => {
   const pauseCount = Math.min(Math.max(Math.round(pauseSeconds), 2), 12);
 
   const silence = new Uint8Array(silenceMp3);
-  const gapCount = 1;
+  const gapCount = pauseCount;
 
   const parts: Uint8Array[] = [];
   const manifest: ManifestItem[] = [];
