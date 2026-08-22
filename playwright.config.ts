@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// NOTE: worktree を並べて e2e を同時に走らせるため、ポートを環境変数で変えられるようにする。
+const port = process.env.E2E_PORT ?? "3939";
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -8,7 +11,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: "list",
   use: {
-    baseURL: "http://localhost:3939",
+    baseURL: `http://localhost:${port}`,
     trace: "on-first-retry",
   },
   projects: [
@@ -18,9 +21,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command:
-      "bun run build && wrangler dev --port 3939 --var DEV_OWNER_ID:e2e-default",
-    url: "http://localhost:3939",
+    command: `bun run build && wrangler dev --port ${port} --var DEV_OWNER_ID:e2e-default`,
+    url: `http://localhost:${port}`,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },
