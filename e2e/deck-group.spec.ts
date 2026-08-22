@@ -84,7 +84,7 @@ test.describe("Deck groups - session launcher", () => {
   }) => {
     await importTwoGroupedDecks(page);
 
-    await page.goto("/daily");
+    await page.goto("/session");
     await expect(page.getByText("2 デッキ")).toBeVisible();
     await expect(page.getByText("L01 現在形")).toHaveCount(0);
 
@@ -98,7 +98,7 @@ test.describe("Deck groups - session launcher", () => {
   }) => {
     await importTwoGroupedDecks(page);
 
-    await page.goto("/daily");
+    await page.goto("/session");
     await expect(page.getByText("/ 3 枚")).toBeVisible();
 
     await page.getByLabel("「文章」のデッキをすべて選択").uncheck();

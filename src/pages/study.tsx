@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Link, useParams } from "@tanstack/react-router";
 import { useDeck, useDueCardsByDeck } from "@/lib/api/hooks";
+import { orderByDueDay } from "@/lib/card-order";
 import { rateCardApi } from "@/lib/api/mutations";
 import {
   getNextReviews,
@@ -36,15 +37,20 @@ export function StudyPage() {
     now,
   );
 
+  // NOTE: 同じ日のカードをランダムに並べる期限順は、評価のたびに再計算すると
+  // 残りのカードが入れ替わるので、最初に読み込んだ一覧で一度だけ確定させる。
+  const dueOrderIdsRef = useRef<string[] | null>(null);
+  if (dueOrderIdsRef.current === null && dueCards) {
+    dueOrderIdsRef.current = orderByDueDay(dueCards).map((c) => c.id);
+  }
+
   const orderedCards = (() => {
     if (!dueCards) return undefined;
-    if (shuffledCardIds) {
-      const cardMap = new Map(dueCards.map((c) => [c.id, c]));
-      return shuffledCardIds
-        .map((id) => cardMap.get(id))
-        .filter((c): c is NonNullable<typeof c> => c != null);
-    }
-    return dueCards;
+    const orderIds = shuffledCardIds ?? dueOrderIdsRef.current ?? [];
+    const cardMap = new Map(dueCards.map((c) => [c.id, c]));
+    return orderIds
+      .map((id) => cardMap.get(id))
+      .filter((c): c is NonNullable<typeof c> => c != null);
   })();
 
   const currentCard = orderedCards?.[0] ?? null;
@@ -65,11 +71,11 @@ export function StudyPage() {
     if (isShuffled) {
       setShuffledCardIds(null);
       setIsShuffled(false);
-    } else if (dueCards) {
-      setShuffledCardIds(shuffleArray(dueCards.map((c) => c.id)));
+    } else if (orderedCards) {
+      setShuffledCardIds(shuffleArray(orderedCards.map((c) => c.id)));
       setIsShuffled(true);
     }
-  }, [isShuffled, dueCards]);
+  }, [isShuffled, orderedCards]);
 
   const handleRate = useCallback(
     async (grade: Grade) => {
@@ -112,7 +118,7 @@ export function StudyPage() {
         <CheckCircle2 className="size-12 text-success" />
         <h1 className="text-xl font-semibold">学習完了！</h1>
         <p className="text-center text-muted-foreground">
-          「{deck.name}」の今日のカードはすべて復習しました
+          「{deck.name}」の期限切れのカードはすべて復習しました
         </p>
         <Link to="/" className="text-primary underline">
           デッキ一覧に戻る

@@ -94,6 +94,29 @@ export function useDueCards(now: number) {
   return useSWR(`/cards/due?before=${now}`, fetchCards);
 }
 
+export type SessionCards = { due: Card[]; upcoming: Card[] };
+
+function fetchSessionCards(path: string): Promise<SessionCards> {
+  return apiFetch<SessionCards>(path);
+}
+
+// NOTE: 期限切れは全件、期限前は limit 件だけ返す。deckIds が null（デッキ未取得）
+// の間は取得しない。keepPreviousData はデッキ切替時の読み込み表示の点滅を防ぐ。
+export function useSessionCards(
+  now: number,
+  limit: number,
+  deckIds: string[] | null,
+) {
+  const sortedIds = deckIds ? [...deckIds].sort() : null;
+  return useSWR(
+    sortedIds
+      ? `/cards/session?now=${now}&limit=${limit}&deck_ids=${sortedIds.join(",")}`
+      : null,
+    fetchSessionCards,
+    { keepPreviousData: true },
+  );
+}
+
 export function useDueCardsByDeck(deckId: string | undefined, now: number) {
   return useSWR(
     deckId ? `/decks/${deckId}/cards?due_before=${now}` : null,
