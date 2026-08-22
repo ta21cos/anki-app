@@ -98,7 +98,7 @@ test.describe("Audio quiz - interval summary", () => {
     await expect(page.getByText("インポート完了")).toBeVisible();
     fs.unlinkSync(filePath);
 
-    await page.goto("/daily");
+    await page.goto("/session");
     await expect(page.getByText("想起ポーズ")).toHaveCount(0);
 
     await page.getByRole("button", { name: "音声クイズ" }).click();

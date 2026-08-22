@@ -3,11 +3,12 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  redirect,
 } from "@tanstack/react-router";
 import { BottomNav } from "@/components/bottom-nav";
 import { SWRProvider } from "@/lib/api/swr-provider";
 import { HomePage } from "@/pages/home";
-import { DailyPage } from "@/pages/daily";
+import { SessionPage } from "@/pages/session";
 import { ImportPage } from "@/pages/import";
 import { StatsPage } from "@/pages/stats";
 import { StudyPage } from "@/pages/study";
@@ -32,10 +33,19 @@ const indexRoute = createRoute({
   component: HomePage,
 });
 
-const dailyRoute = createRoute({
+const sessionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/session",
+  component: SessionPage,
+});
+
+// NOTE: 旧 URL のブックマーク互換のため /daily は /session へ転送する。
+const dailyRedirectRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/daily",
-  component: DailyPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/session" });
+  },
 });
 
 const importRoute = createRoute({
@@ -76,7 +86,8 @@ const settingsRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
-  dailyRoute,
+  sessionRoute,
+  dailyRedirectRoute,
   importRoute,
   statsRoute,
   studyRoute,

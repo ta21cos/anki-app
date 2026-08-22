@@ -1,6 +1,13 @@
 import { useState, useCallback } from "react";
+import {
+  useDecks,
+  useDeckCounts,
+  useSessionCards,
+  type Card,
+  type Deck,
+} from "@/lib/api/hooks";
+import { orderByDueDay } from "@/lib/card-order";
 import { Link } from "@tanstack/react-router";
-import { useDecks, useDueCards, type Deck } from "@/lib/api/hooks";
 import { rateCardApi } from "@/lib/api/mutations";
 import {
   getNextReviews,
@@ -38,7 +45,7 @@ import { DeckGroupRow } from "@/components/deck-group-row";
 import { groupDecks, selectionState } from "@/lib/deck-tree";
 import { cn } from "@/lib/utils";
 
-const DEFAULT_DAILY_LIMIT = 20;
+const DEFAULT_SESSION_LIMIT = 20;
 const MIN_LIMIT = 5;
 const MAX_LIMIT = 100;
 const STEP = 5;
@@ -65,7 +72,29 @@ function shuffleArray<T>(arr: T[]): T[] {
     .map(({ value }) => value);
 }
 
-export function DailyPage() {
+// 期限切れを優先し、学習枚数に満たない分だけ期限前のカードを先取りする。
+function buildPool({
+  due,
+  upcoming,
+  limit,
+  borrowAhead,
+}: {
+  due: Card[];
+  upcoming: Card[];
+  limit: number;
+  borrowAhead: boolean;
+}): { cards: Card[]; borrowCount: number } {
+  const dueOrdered = orderByDueDay(due).slice(0, limit);
+  const borrowCount = borrowAhead
+    ? Math.min(Math.max(limit - dueOrdered.length, 0), upcoming.length)
+    : 0;
+  return {
+    cards: [...dueOrdered, ...upcoming.slice(0, borrowCount)],
+    borrowCount,
+  };
+}
+
+export function SessionPage() {
   const [mode, setMode] = useState<Mode>("start");
   const [selectedMode, setSelectedMode] = useState<
     "card" | "audio" | "audioquiz"
@@ -76,7 +105,8 @@ export function DailyPage() {
   );
   const { recallPauseSeconds, cardGapSeconds } = useSettings();
   const [selectedOrder, setSelectedOrder] = useState<Order>("default");
-  const [dailyLimit, setDailyLimit] = useState(DEFAULT_DAILY_LIMIT);
+  const [sessionLimit, setSessionLimit] = useState(DEFAULT_SESSION_LIMIT);
+  const [borrowAhead, setBorrowAhead] = useState(true);
   const [showAnswer, setShowAnswer] = useState(false);
   const [isRating, setIsRating] = useState(false);
   const [reviewedCount, setReviewedCount] = useState(0);
@@ -85,8 +115,8 @@ export function DailyPage() {
 
   const [now, setNow] = useState(() => Date.now());
 
-  const { data: rawDueCards } = useDueCards(now);
   const { data: decks } = useDecks();
+  const { data: deckCounts } = useDeckCounts(now);
 
   // このセッション限りのデッキ選択。初期値はデッキタブの include_in_daily。
   const [deckOverrides, setDeckOverrides] = useState<Record<string, boolean>>(
@@ -98,26 +128,18 @@ export function DailyPage() {
     deckOverrides[deck.id] ?? deck.includeInDaily;
 
   const includedDeckIds = decks
-    ? new Set(decks.filter(isDeckSelected).map((d) => d.id))
+    ? decks.filter(isDeckSelected).map((d) => d.id)
     : null;
 
-  const dueCountByDeck = rawDueCards
-    ? rawDueCards.reduce<Record<string, number>>((acc, card) => {
-        acc[card.deckId] = (acc[card.deckId] ?? 0) + 1;
-        return acc;
-      }, {})
-    : {};
+  const { data: sessionCards } = useSessionCards(
+    now,
+    borrowAhead ? sessionLimit : 0,
+    includedDeckIds,
+  );
 
-  const dueCards =
-    rawDueCards && includedDeckIds
-      ? rawDueCards
-          .filter((card) => includedDeckIds.has(card.deckId))
-          .sort((a, b) => {
-            if (a.state === 0 && b.state !== 0) return -1;
-            if (a.state !== 0 && b.state === 0) return 1;
-            return a.due - b.due;
-          })
-      : undefined;
+  const dueCountByDeck = deckCounts
+    ? Object.fromEntries(deckCounts.map((c) => [c.deckId, c.due]))
+    : {};
 
   const deckNameMap = decks
     ? Object.fromEntries(decks.map((d) => [d.id, d.name]))
@@ -134,17 +156,28 @@ export function DailyPage() {
     Object.entries(deckLangMap).map(([id, langs]) => [id, langs.backLang]),
   );
 
-  const totalDue = dueCards?.length ?? 0;
+  const totalDue = sessionCards?.due.length ?? 0;
+
+  // NOTE: 開始前の枚数表示用。出題順は handleStart で一度だけ確定させるので、
+  // ここでのランダム並びは表示に影響しない。
+  const preview = sessionCards
+    ? buildPool({
+        due: sessionCards.due,
+        upcoming: sessionCards.upcoming,
+        limit: sessionLimit,
+        borrowAhead,
+      })
+    : { cards: [], borrowCount: 0 };
+  const poolSize = preview.cards.length;
 
   const limitedCards = (() => {
-    if (!dueCards) return [];
-    if (sessionCardIds) {
-      const cardMap = new Map(dueCards.map((c) => [c.id, c]));
-      return sessionCardIds
-        .map((id) => cardMap.get(id))
-        .filter((c): c is NonNullable<typeof c> => c != null);
-    }
-    return dueCards.slice(0, dailyLimit);
+    if (!sessionCards || !sessionCardIds) return [];
+    const cardMap = new Map(
+      [...sessionCards.due, ...sessionCards.upcoming].map((c) => [c.id, c]),
+    );
+    return sessionCardIds
+      .map((id) => cardMap.get(id))
+      .filter((c): c is NonNullable<typeof c> => c != null);
   })();
   const currentCard = limitedCards[0] ?? null;
 
@@ -189,6 +222,11 @@ export function DailyPage() {
             grade,
           },
         ]);
+        // NOTE: 評価後のカードは期限前カードとして再取得される可能性があるため、
+        // 再取得に頼らずセッションの出題列から明示的に外す。
+        setSessionCardIds((prev) =>
+          prev ? prev.filter((id) => id !== currentCard.id) : prev,
+        );
         setShowAnswer(false);
         setReviewedCount((c) => c + 1);
         setNow(Date.now());
@@ -199,10 +237,20 @@ export function DailyPage() {
     [currentCard, isRating],
   );
 
+  const buildSessionCards = useCallback(() => {
+    if (!sessionCards) return [];
+    const { cards } = buildPool({
+      due: sessionCards.due,
+      upcoming: sessionCards.upcoming,
+      limit: sessionLimit,
+      borrowAhead,
+    });
+    return selectedOrder === "random" ? shuffleArray(cards) : cards;
+  }, [sessionCards, sessionLimit, borrowAhead, selectedOrder]);
+
   const startAudioQuiz = useCallback(async () => {
-    if (!dueCards || dueCards.length === 0) return;
-    const pool = dueCards.slice(0, Math.min(dailyLimit, AUDIO_QUIZ_MAX_CARDS));
-    const ordered = selectedOrder === "random" ? shuffleArray(pool) : pool;
+    const ordered = buildSessionCards().slice(0, AUDIO_QUIZ_MAX_CARDS);
+    if (ordered.length === 0) return;
     setMode("audioquiz");
     setAudioQuiz({ status: "preparing", done: 0, total: ordered.length * 2 });
     try {
@@ -226,30 +274,20 @@ export function DailyPage() {
           err instanceof Error ? err.message : "音声の準備に失敗しました",
       });
     }
-  }, [
-    dueCards,
-    dailyLimit,
-    selectedOrder,
-    recallPauseSeconds,
-    cardGapSeconds,
-    deckLangMap,
-  ]);
+  }, [buildSessionCards, recallPauseSeconds, cardGapSeconds, deckLangMap]);
 
   const handleStart = useCallback(() => {
     if (selectedMode === "audioquiz") {
       startAudioQuiz();
       return;
     }
-    if (dueCards) {
-      const ids = dueCards.slice(0, dailyLimit).map((c) => c.id);
-      setSessionCardIds(selectedOrder === "random" ? shuffleArray(ids) : ids);
-    }
+    setSessionCardIds(buildSessionCards().map((c) => c.id));
     setMode(selectedMode);
     setReviewedCount(0);
     setCompletedCount(null);
     setSessionResults([]);
     setNow(Date.now());
-  }, [selectedMode, selectedOrder, dueCards, dailyLimit, startAudioQuiz]);
+  }, [selectedMode, buildSessionCards, startAudioQuiz]);
 
   const handleAudioComplete = useCallback((count: number) => {
     setCompletedCount(count);
@@ -264,7 +302,7 @@ export function DailyPage() {
     setNow(Date.now());
   }, []);
 
-  if (dueCards === undefined || decks === undefined) {
+  if (sessionCards === undefined || decks === undefined) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="text-muted-foreground">読み込み中...</div>
@@ -275,7 +313,7 @@ export function DailyPage() {
   if (mode === "start") {
     return (
       <div className="px-4 pt-6">
-        <h1 className="mb-6 text-lg font-semibold">今日の学習</h1>
+        <h1 className="mb-6 text-lg font-semibold">学習</h1>
 
         {completedCount !== null && completedCount > 0 && (
           <div className="mb-6 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-900 dark:bg-green-950">
@@ -377,29 +415,48 @@ export function DailyPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() =>
-                  setDailyLimit((l) => Math.max(MIN_LIMIT, l - STEP))
+                  setSessionLimit((l) => Math.max(MIN_LIMIT, l - STEP))
                 }
-                disabled={dailyLimit <= MIN_LIMIT}
+                disabled={sessionLimit <= MIN_LIMIT}
+                aria-label="学習枚数を減らす"
                 className="rounded-md border p-2 text-muted-foreground transition-colors hover:bg-accent disabled:opacity-30"
               >
                 <Minus className="size-4" />
               </button>
               <span className="min-w-[3rem] text-center text-lg font-semibold">
-                {dailyLimit}
+                {sessionLimit}
               </span>
               <button
                 onClick={() =>
-                  setDailyLimit((l) => Math.min(MAX_LIMIT, l + STEP))
+                  setSessionLimit((l) => Math.min(MAX_LIMIT, l + STEP))
                 }
-                disabled={dailyLimit >= MAX_LIMIT}
+                disabled={sessionLimit >= MAX_LIMIT}
+                aria-label="学習枚数を増やす"
                 className="rounded-md border p-2 text-muted-foreground transition-colors hover:bg-accent disabled:opacity-30"
               >
                 <Plus className="size-4" />
               </button>
               <span className="text-sm text-muted-foreground">
-                / {totalDue} 枚
+                / {poolSize} 枚
               </span>
             </div>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              期限切れ {totalDue} 枚
+            </p>
+            <label className="mt-3 flex cursor-pointer items-center gap-2.5 text-sm">
+              <input
+                type="checkbox"
+                checked={borrowAhead}
+                onChange={(e) => setBorrowAhead(e.target.checked)}
+                className="size-4 accent-primary"
+              />
+              期限前のカードも先取りする
+            </label>
+            {preview.borrowCount > 0 && (
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                期限前のカード {preview.borrowCount} 枚を先取りします
+              </p>
+            )}
           </div>
 
           <div>
@@ -529,7 +586,7 @@ export function DailyPage() {
 
           <Button
             onClick={handleStart}
-            disabled={totalDue === 0}
+            disabled={poolSize === 0}
             className="w-full gap-2"
             size="lg"
           >
@@ -537,7 +594,7 @@ export function DailyPage() {
             学習を始める
           </Button>
 
-          {totalDue === 0 && (
+          {poolSize === 0 && (
             <p className="text-center text-sm text-muted-foreground">
               復習するカードがありません
             </p>
@@ -557,7 +614,7 @@ export function DailyPage() {
           >
             ← 戻る
           </button>
-          <h1 className="text-lg font-semibold">今日の学習（音声）</h1>
+          <h1 className="text-lg font-semibold">学習（音声）</h1>
         </div>
 
         <ListenReviewMode
@@ -580,7 +637,7 @@ export function DailyPage() {
           >
             ← 戻る
           </button>
-          <h1 className="text-lg font-semibold">今日の学習（音声クイズ）</h1>
+          <h1 className="text-lg font-semibold">学習（音声クイズ）</h1>
         </div>
 
         {audioQuiz?.status === "preparing" && (
@@ -646,9 +703,7 @@ export function DailyPage() {
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 py-8">
         <CheckCircle2 className="size-12 text-success" />
         <h1 className="text-xl font-semibold">
-          {reviewedCount > 0
-            ? "今日の学習完了！"
-            : "復習するカードがありません"}
+          {reviewedCount > 0 ? "学習完了！" : "復習するカードがありません"}
         </h1>
         {reviewedCount > 0 && (
           <p className="text-center text-muted-foreground">
@@ -703,13 +758,13 @@ export function DailyPage() {
             >
               ← 戻る
             </button>
-            <h1 className="text-lg font-semibold">今日の学習</h1>
+            <h1 className="text-lg font-semibold">学習</h1>
           </div>
           <div className="flex items-center gap-2">
             <AutoSpeakToggle />
             <span className="text-sm text-muted-foreground">
               残り {remaining} 枚
-              {totalDue > dailyLimit && (
+              {totalDue > sessionLimit && (
                 <span className="ml-1 text-xs">(全{totalDue}枚中)</span>
               )}
             </span>

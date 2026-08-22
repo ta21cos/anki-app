@@ -62,7 +62,7 @@ export function AudioQuizPlayer({
     const audio = audioRef.current;
 
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: "今日の音声クイズ",
+      title: "音声クイズ",
       artist: "AnkiPWA",
     });
     navigator.mediaSession.setActionHandler("play", () => audio?.play());

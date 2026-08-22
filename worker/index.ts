@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { cloudflareAccess } from "@hono/cloudflare-access";
-import { and, asc, count, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, count, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { getDb, type Env } from "./db";
 import { cards, decks, isLang, type Lang } from "./schema";
 import { audioApp } from "./audio";
@@ -287,6 +287,42 @@ app.get("/cards/due", async (c) => {
     .orderBy(asc(cards.due));
 
   return c.json(result);
+});
+
+// 学習セッション用のカード取得。期限切れは全件（総数表示に使う）、
+// 期限前は limit 件だけ先取り候補として返す。
+app.get("/cards/session", async (c) => {
+  const db = getDb(c.env);
+  const ownerId = c.get("ownerId");
+  const now = Number(c.req.query("now") ?? Date.now());
+  const limit = Math.max(0, Number(c.req.query("limit") ?? 0));
+  const deckIds = (c.req.query("deck_ids") ?? "")
+    .split(",")
+    .filter((id) => id.length > 0);
+
+  if (deckIds.length === 0) {
+    return c.json({ due: [], upcoming: [] });
+  }
+
+  const scope = and(eq(cards.ownerId, ownerId), inArray(cards.deckId, deckIds));
+
+  const [due, upcoming] = await Promise.all([
+    db
+      .select()
+      .from(cards)
+      .where(and(scope, lte(cards.due, now)))
+      .orderBy(asc(cards.due)),
+    limit > 0
+      ? db
+          .select()
+          .from(cards)
+          .where(and(scope, gt(cards.due, now)))
+          .orderBy(asc(cards.due))
+          .limit(limit)
+      : Promise.resolve([]),
+  ]);
+
+  return c.json({ due, upcoming });
 });
 
 app.patch("/cards/:cardId", async (c) => {
