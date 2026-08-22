@@ -13,6 +13,8 @@ import {
 import { CardViewer } from "@/components/card-viewer";
 import { RatingButtons } from "@/components/rating-buttons";
 import { CardEditButton } from "@/components/card-edit-button";
+import { AutoSpeakToggle } from "@/components/auto-speak-toggle";
+import { useAutoSpeak } from "@/lib/use-auto-speak";
 import { ArrowLeft, CheckCircle2, Shuffle } from "lucide-react";
 
 function shuffleArray<T>(arr: T[]): T[] {
@@ -54,6 +56,19 @@ export function StudyPage() {
   })();
 
   const currentCard = orderedCards?.[0] ?? null;
+
+  useAutoSpeak(
+    currentCard && deck
+      ? {
+          id: currentCard.id,
+          front: currentCard.front,
+          back: currentCard.back,
+          frontLang: deck.frontLang,
+          backLang: deck.backLang,
+        }
+      : null,
+    showAnswer,
+  );
 
   const intervals = currentCard
     ? (() => {
@@ -135,6 +150,7 @@ export function StudyPage() {
         </Link>
         <h1 className="text-lg font-semibold">{deck.name}</h1>
         <div className="ml-auto flex items-center gap-2">
+          <AutoSpeakToggle />
           <button
             onClick={handleToggleShuffle}
             className={`rounded-md p-1.5 transition-colors ${isShuffled ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}

@@ -1,5 +1,11 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BookOpen, Upload, BarChart3, GraduationCap } from "lucide-react";
+import {
+  BookOpen,
+  Upload,
+  BarChart3,
+  GraduationCap,
+  Settings,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -7,6 +13,7 @@ const navItems = [
   { href: "/session", label: "学習", icon: GraduationCap },
   { href: "/import", label: "インポート", icon: Upload },
   { href: "/stats", label: "統計", icon: BarChart3 },
+  { href: "/settings", label: "設定", icon: Settings },
 ] as const;
 
 export function BottomNav() {

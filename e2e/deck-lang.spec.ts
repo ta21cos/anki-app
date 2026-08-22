@@ -89,8 +89,8 @@ test.describe("Deck languages - edit", () => {
   });
 });
 
-test.describe("Audio quiz - pause selector", () => {
-  test("shows the pause options only for the audio quiz mode", async ({
+test.describe("Audio quiz - interval summary", () => {
+  test("shows the configured intervals only for the audio quiz mode", async ({
     page,
   }) => {
     const filePath = await selectFile(page, "pause.txt", "hello\tこんにちは\n");
@@ -102,14 +102,9 @@ test.describe("Audio quiz - pause selector", () => {
     await expect(page.getByText("想起ポーズ")).toHaveCount(0);
 
     await page.getByRole("button", { name: "音声クイズ" }).click();
-    await expect(page.getByText("想起ポーズ")).toBeVisible();
-    await expect(page.getByRole("button", { name: "6 秒" })).toHaveClass(
-      /border-primary/,
-    );
-
-    await page.getByRole("button", { name: "10 秒" }).click();
-    await expect(page.getByRole("button", { name: "10 秒" })).toHaveClass(
-      /border-primary/,
-    );
+    await expect(page.getByText("想起ポーズ 6 秒")).toBeVisible();
+    await expect(
+      page.getByRole("main").getByRole("link", { name: "設定" }),
+    ).toHaveAttribute("href", "/settings");
   });
 });

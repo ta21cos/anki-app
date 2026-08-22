@@ -34,9 +34,16 @@ type SegmentItem = { text: string; lang: Lang };
 
 // NOTE: 表面・裏面を言語付きで TTS セグメント化した後、1 本の番組 mp3 に
 // 合成する。バッチ分割は Workers のサブリクエスト上限に合わせた制約に従う。
+export type AudioQuizIntervals = {
+  // 表面を読んだ後、思い出すための無音（秒）
+  pauseSeconds: number;
+  // 裏面を読んだ後、次のカードまでの無音（秒）
+  gapSeconds: number;
+};
+
 export async function prepareAudioQuiz(
   cards: QuizCard[],
-  pauseSeconds: number,
+  { pauseSeconds, gapSeconds }: AudioQuizIntervals,
   onProgress?: (done: number, total: number) => void,
 ): Promise<AudioSession> {
   const items: SegmentItem[] = cards.flatMap((card) => [
@@ -72,7 +79,7 @@ export async function prepareAudioQuiz(
 
   return apiFetch<AudioSession>("/audio/compile", {
     method: "POST",
-    body: JSON.stringify({ items: compileItems, pauseSeconds }),
+    body: JSON.stringify({ items: compileItems, pauseSeconds, gapSeconds }),
   });
 }
 

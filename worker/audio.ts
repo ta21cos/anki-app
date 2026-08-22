@@ -121,12 +121,18 @@ type ManifestItem = {
   end: number;
 };
 
+function clampSilenceSeconds(seconds: number): number {
+  const rounded = Number.isFinite(seconds) ? Math.round(seconds) : 1;
+  return Math.min(Math.max(rounded, 1), 15);
+}
+
 // NOTE: [プロンプト][ポーズ][答え][ポーズ] を連結して 1 本の mp3 にする。
 // 1 ファイルなのは iOS がロック画面で speechSynthesis / Web Audio を止めるため。
 audioApp.post("/compile", async (c) => {
-  const { items, pauseSeconds } = (await c.req.json()) as {
+  const { items, pauseSeconds, gapSeconds } = (await c.req.json()) as {
     items: CompileItem[];
     pauseSeconds: number;
+    gapSeconds?: number;
   };
   if (!Array.isArray(items) || items.length === 0) {
     throw new HTTPException(400, { message: "items is required" });
@@ -136,10 +142,11 @@ audioApp.post("/compile", async (c) => {
       message: `items must be at most ${MAX_ITEMS_PER_SESSION}`,
     });
   }
-  const pauseCount = Math.min(Math.max(Math.round(pauseSeconds), 2), 12);
+  // NOTE: 無音は 1 秒 mp3 の繰り返しなので整数秒に丸める。設定画面の 1〜15 秒と同じ範囲。
+  const pauseCount = clampSilenceSeconds(pauseSeconds);
+  const gapCount = clampSilenceSeconds(gapSeconds ?? pauseSeconds);
 
   const silence = new Uint8Array(silenceMp3);
-  const gapCount = pauseCount;
 
   const parts: Uint8Array[] = [];
   const manifest: ManifestItem[] = [];

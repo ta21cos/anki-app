@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useSettings } from "@/lib/settings";
 
 const SPEED_OPTIONS = [
   { label: "0.7x", rate: 0.7 },
@@ -31,7 +32,9 @@ export function ListenPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [autoMode, setAutoMode] = useState(false);
-  const [delay, setDelay] = useState(2);
+  // NOTE: 初期値は設定画面の「カード間」。このページ内の調整は一時的なもの。
+  const { cardGapSeconds } = useSettings();
+  const [delay, setDelay] = useState<number>(cardGapSeconds);
   const [speedIndex, setSpeedIndex] = useState(2);
 
   const autoModeRef = useRef(autoMode);

@@ -14,6 +14,7 @@ import { StatsPage } from "@/pages/stats";
 import { StudyPage } from "@/pages/study";
 import { ListenPage } from "@/pages/listen";
 import { DeckEditPage } from "@/pages/deck-edit";
+import { SettingsPage } from "@/pages/settings";
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -77,6 +78,12 @@ const deckEditRoute = createRoute({
   component: DeckEditPage,
 });
 
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/settings",
+  component: SettingsPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   sessionRoute,
@@ -86,6 +93,7 @@ const routeTree = rootRoute.addChildren([
   studyRoute,
   listenRoute,
   deckEditRoute,
+  settingsRoute,
 ]);
 
 export const router = createRouter({ routeTree });
