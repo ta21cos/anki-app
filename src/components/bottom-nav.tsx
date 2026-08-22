@@ -1,10 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BookOpen, Upload, BarChart3, CalendarCheck } from "lucide-react";
+import { BookOpen, Upload, BarChart3, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "デッキ", icon: BookOpen },
-  { href: "/daily", label: "今日", icon: CalendarCheck },
+  { href: "/session", label: "学習", icon: GraduationCap },
   { href: "/import", label: "インポート", icon: Upload },
   { href: "/stats", label: "統計", icon: BarChart3 },
 ] as const;

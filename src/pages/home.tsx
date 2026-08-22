@@ -181,7 +181,7 @@ function DeckItem({
     <div className="flex items-center rounded-lg border transition-colors hover:bg-accent">
       <label
         className="flex shrink-0 items-center self-stretch pl-4 pr-1"
-        aria-label={`「${deck.name}」を今日の学習に含める`}
+        aria-label={`「${deck.name}」を学習セッションに含める`}
       >
         <input
           type="checkbox"
