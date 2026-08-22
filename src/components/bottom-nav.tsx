@@ -1,5 +1,11 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BookOpen, Upload, BarChart3, CalendarCheck } from "lucide-react";
+import {
+  BookOpen,
+  Upload,
+  BarChart3,
+  CalendarCheck,
+  Settings,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -7,6 +13,7 @@ const navItems = [
   { href: "/daily", label: "今日", icon: CalendarCheck },
   { href: "/import", label: "インポート", icon: Upload },
   { href: "/stats", label: "統計", icon: BarChart3 },
+  { href: "/settings", label: "設定", icon: Settings },
 ] as const;
 
 export function BottomNav() {

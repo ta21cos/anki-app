@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { Link } from "@tanstack/react-router";
 import { useDecks, useDueCards, type Deck } from "@/lib/api/hooks";
 import { rateCardApi } from "@/lib/api/mutations";
 import {
@@ -13,6 +14,9 @@ import { CardEditButton } from "@/components/card-edit-button";
 import { RatingButtons } from "@/components/rating-buttons";
 import { ListenReviewMode } from "@/components/listen-review-mode";
 import { AudioQuizPlayer } from "@/components/audio-quiz-player";
+import { AutoSpeakToggle } from "@/components/auto-speak-toggle";
+import { useAutoSpeak } from "@/lib/use-auto-speak";
+import { useSettings } from "@/lib/settings";
 import {
   prepareAudioQuiz,
   AUDIO_QUIZ_MAX_CARDS,
@@ -38,10 +42,6 @@ const DEFAULT_DAILY_LIMIT = 20;
 const MIN_LIMIT = 5;
 const MAX_LIMIT = 100;
 const STEP = 5;
-// NOTE: 想起ポーズの秒数。単語なら短く、文章の英作文なら長めが要るので
-// 開始画面で選べるようにする。
-const AUDIO_QUIZ_PAUSE_OPTIONS = [3, 6, 10] as const;
-const DEFAULT_AUDIO_QUIZ_PAUSE_SECONDS = 6;
 
 type Mode = "start" | "card" | "audio" | "audioquiz";
 type Order = "default" | "random";
@@ -74,9 +74,7 @@ export function DailyPage() {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
     {},
   );
-  const [pauseSeconds, setPauseSeconds] = useState<number>(
-    DEFAULT_AUDIO_QUIZ_PAUSE_SECONDS,
-  );
+  const { recallPauseSeconds, cardGapSeconds } = useSettings();
   const [selectedOrder, setSelectedOrder] = useState<Order>("default");
   const [dailyLimit, setDailyLimit] = useState(DEFAULT_DAILY_LIMIT);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -150,6 +148,19 @@ export function DailyPage() {
   })();
   const currentCard = limitedCards[0] ?? null;
 
+  useAutoSpeak(
+    currentCard
+      ? {
+          id: currentCard.id,
+          front: currentCard.front,
+          back: currentCard.back,
+          frontLang: deckLangMap[currentCard.deckId]?.frontLang ?? "en",
+          backLang: deckLangMap[currentCard.deckId]?.backLang ?? "en",
+        }
+      : null,
+    mode === "card" && showAnswer,
+  );
+
   const intervals = currentCard
     ? (() => {
         const reviews = getNextReviews(currentCard);
@@ -204,7 +215,7 @@ export function DailyPage() {
           frontLang: deckLangMap[c.deckId]?.frontLang ?? "en",
           backLang: deckLangMap[c.deckId]?.backLang ?? "en",
         })),
-        pauseSeconds,
+        { pauseSeconds: recallPauseSeconds, gapSeconds: cardGapSeconds },
         (done, total) => setAudioQuiz({ status: "preparing", done, total }),
       );
       setAudioQuiz({ status: "ready", session });
@@ -215,7 +226,14 @@ export function DailyPage() {
           err instanceof Error ? err.message : "音声の準備に失敗しました",
       });
     }
-  }, [dueCards, dailyLimit, selectedOrder, pauseSeconds, deckLangMap]);
+  }, [
+    dueCards,
+    dailyLimit,
+    selectedOrder,
+    recallPauseSeconds,
+    cardGapSeconds,
+    deckLangMap,
+  ]);
 
   const handleStart = useCallback(() => {
     if (selectedMode === "audioquiz") {
@@ -433,31 +451,17 @@ export function DailyPage() {
                 {AUDIO_QUIZ_MAX_CARDS} 枚）。画面をロックしても再生が続きます
               </p>
             )}
+            {selectedMode === "audioquiz" && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                想起ポーズ {recallPauseSeconds} 秒 / カード間 {cardGapSeconds}{" "}
+                秒（
+                <Link to="/settings" className="text-primary underline">
+                  設定
+                </Link>
+                で変更）
+              </p>
+            )}
           </div>
-
-          {selectedMode === "audioquiz" && (
-            <div>
-              <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                想起ポーズ
-              </label>
-              <div className="grid grid-cols-3 gap-3">
-                {AUDIO_QUIZ_PAUSE_OPTIONS.map((seconds) => (
-                  <button
-                    key={seconds}
-                    onClick={() => setPauseSeconds(seconds)}
-                    className={cn(
-                      "rounded-lg border-2 p-3 text-sm font-medium transition-colors",
-                      pauseSeconds === seconds
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-border text-muted-foreground hover:border-muted-foreground/30",
-                    )}
-                  >
-                    {seconds} 秒
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           <div>
             <label className="mb-2 block text-sm font-medium text-muted-foreground">
@@ -701,12 +705,15 @@ export function DailyPage() {
             </button>
             <h1 className="text-lg font-semibold">今日の学習</h1>
           </div>
-          <span className="text-sm text-muted-foreground">
-            残り {remaining} 枚
-            {totalDue > dailyLimit && (
-              <span className="ml-1 text-xs">(全{totalDue}枚中)</span>
-            )}
-          </span>
+          <div className="flex items-center gap-2">
+            <AutoSpeakToggle />
+            <span className="text-sm text-muted-foreground">
+              残り {remaining} 枚
+              {totalDue > dailyLimit && (
+                <span className="ml-1 text-xs">(全{totalDue}枚中)</span>
+              )}
+            </span>
+          </div>
         </div>
       </div>
 
