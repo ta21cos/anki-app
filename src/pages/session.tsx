@@ -40,6 +40,7 @@ import {
   Play,
   ArrowDownNarrowWide,
   Shuffle,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeckGroupRow } from "@/components/deck-group-row";
@@ -111,7 +112,9 @@ export function SessionPage() {
   const [showAnswer, setShowAnswer] = useState(false);
   const [isRating, setIsRating] = useState(false);
   const [reviewedCount, setReviewedCount] = useState(0);
-  const [completedCount, setCompletedCount] = useState<number | null>(null);
+  // NOTE: 評価済みカードは再取得の due/upcoming から消えるため、リトライで同じ
+  // カードを再出題できるよう、開始時点のカード列をセッション中は保持する。
+  const [sessionDeck, setSessionDeck] = useState<Card[]>([]);
   const [sessionCardIds, setSessionCardIds] = useState<string[] | null>(null);
 
   const [now, setNow] = useState(() => Date.now());
@@ -173,14 +176,18 @@ export function SessionPage() {
 
   const limitedCards = (() => {
     if (!sessionCards || !sessionCardIds) return [];
-    const cardMap = new Map(
+    const freshCardMap = new Map(
       [...sessionCards.due, ...sessionCards.upcoming].map((c) => [c.id, c]),
     );
+    const sessionDeckMap = new Map(
+      sessionDeck.map((c) => [c.id, freshCardMap.get(c.id) ?? c]),
+    );
     return sessionCardIds
-      .map((id) => cardMap.get(id))
+      .map((id) => sessionDeckMap.get(id))
       .filter((c): c is NonNullable<typeof c> => c != null);
   })();
   const currentCard = limitedCards[0] ?? null;
+  const isSessionFinished = sessionCardIds !== null && currentCard === null;
 
   const cardAudio = useCardAudio(
     currentCard
@@ -282,22 +289,36 @@ export function SessionPage() {
       startAudioQuiz();
       return;
     }
-    setSessionCardIds(buildSessionCards().map((c) => c.id));
+    const startedCards = buildSessionCards();
+    setSessionDeck(startedCards);
+    setSessionCardIds(startedCards.map((c) => c.id));
     setMode(selectedMode);
+    setShowAnswer(false);
     setReviewedCount(0);
-    setCompletedCount(null);
     setSessionResults([]);
     setNow(Date.now());
   }, [selectedMode, buildSessionCards, startAudioQuiz]);
 
+  // NOTE: 読み上げモードは ListenReviewMode 内で評価するため、完了時に出題列を
+  // 空にしてカードモードと同じ完了画面へ合流させる。
   const handleAudioComplete = useCallback((count: number) => {
-    setCompletedCount(count);
-    setMode("start");
+    setReviewedCount(count);
+    setSessionCardIds([]);
+    setNow(Date.now());
   }, []);
+
+  const handleRetry = useCallback(() => {
+    setSessionCardIds(sessionDeck.map((c) => c.id));
+    setShowAnswer(false);
+    setReviewedCount(0);
+    setSessionResults([]);
+    setNow(Date.now());
+  }, [sessionDeck]);
 
   const handleBackToStart = useCallback(() => {
     setMode("start");
     setReviewedCount(0);
+    setSessionDeck([]);
     setSessionCardIds(null);
     setAudioQuiz(null);
     setNow(Date.now());
@@ -315,15 +336,6 @@ export function SessionPage() {
     return (
       <div className="px-4 pt-6">
         <h1 className="mb-6 text-lg font-semibold">学習</h1>
-
-        {completedCount !== null && completedCount > 0 && (
-          <div className="mb-6 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-900 dark:bg-green-950">
-            <CheckCircle2 className="size-5 text-green-600 dark:text-green-400" />
-            <span className="text-sm text-green-700 dark:text-green-300">
-              {completedCount} 枚のカードを復習しました
-            </span>
-          </div>
-        )}
 
         <div className="space-y-6">
           <div>
@@ -605,6 +617,73 @@ export function SessionPage() {
     );
   }
 
+  if (isSessionFinished) {
+    const worstByCard = sessionResults.reduce<Map<string, SessionResult>>(
+      (map, result) => {
+        const prev = map.get(result.cardId);
+        if (!prev || result.grade < prev.grade) {
+          map.set(result.cardId, result);
+        }
+        return map;
+      },
+      new Map(),
+    );
+    const struggled = [...worstByCard.values()];
+    const againResults = struggled.filter((r) => r.grade === Rating.Again);
+    const hardResults = struggled.filter((r) => r.grade === Rating.Hard);
+
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 py-8">
+        <CheckCircle2 className="size-12 text-success" />
+        <h1 className="text-xl font-semibold">
+          {reviewedCount > 0 ? "学習完了！" : "復習するカードがありません"}
+        </h1>
+        {reviewedCount > 0 && (
+          <p className="text-center text-muted-foreground">
+            {reviewedCount} 枚のカードを復習しました
+          </p>
+        )}
+
+        {againResults.length > 0 || hardResults.length > 0 ? (
+          <div className="w-full max-w-md space-y-4">
+            {againResults.length > 0 && (
+              <SessionSummaryList
+                title="もう一度"
+                titleClassName="text-grade-again"
+                items={againResults}
+                deckNameMap={deckNameMap}
+              />
+            )}
+            {hardResults.length > 0 && (
+              <SessionSummaryList
+                title="難しかった"
+                titleClassName="text-grade-hard"
+                items={hardResults}
+                deckNameMap={deckNameMap}
+              />
+            )}
+          </div>
+        ) : (
+          reviewedCount > 0 && (
+            <p className="text-sm text-muted-foreground">
+              つまずいたカードはありませんでした
+            </p>
+          )
+        )}
+
+        {reviewedCount > 0 && (
+          <Button onClick={handleRetry} className="gap-2" size="lg">
+            <RotateCcw className="size-4" />
+            同じカードでもう一度
+          </Button>
+        )}
+        <button onClick={handleBackToStart} className="text-primary underline">
+          スタートに戻る
+        </button>
+      </div>
+    );
+  }
+
   if (mode === "audio") {
     return (
       <div className="px-4 pt-6">
@@ -685,66 +764,7 @@ export function SessionPage() {
     );
   }
 
-  if (!currentCard) {
-    const worstByCard = sessionResults.reduce<Map<string, SessionResult>>(
-      (map, result) => {
-        const prev = map.get(result.cardId);
-        if (!prev || result.grade < prev.grade) {
-          map.set(result.cardId, result);
-        }
-        return map;
-      },
-      new Map(),
-    );
-    const struggled = [...worstByCard.values()];
-    const againResults = struggled.filter((r) => r.grade === Rating.Again);
-    const hardResults = struggled.filter((r) => r.grade === Rating.Hard);
-
-    return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 py-8">
-        <CheckCircle2 className="size-12 text-success" />
-        <h1 className="text-xl font-semibold">
-          {reviewedCount > 0 ? "学習完了！" : "復習するカードがありません"}
-        </h1>
-        {reviewedCount > 0 && (
-          <p className="text-center text-muted-foreground">
-            {reviewedCount} 枚のカードを復習しました
-          </p>
-        )}
-
-        {againResults.length > 0 || hardResults.length > 0 ? (
-          <div className="w-full max-w-md space-y-4">
-            {againResults.length > 0 && (
-              <SessionSummaryList
-                title="もう一度"
-                titleClassName="text-grade-again"
-                items={againResults}
-                deckNameMap={deckNameMap}
-              />
-            )}
-            {hardResults.length > 0 && (
-              <SessionSummaryList
-                title="難しかった"
-                titleClassName="text-grade-hard"
-                items={hardResults}
-                deckNameMap={deckNameMap}
-              />
-            )}
-          </div>
-        ) : (
-          reviewedCount > 0 && (
-            <p className="text-sm text-muted-foreground">
-              つまずいたカードはありませんでした
-            </p>
-          )
-        )}
-
-        <button onClick={handleBackToStart} className="text-primary underline">
-          スタートに戻る
-        </button>
-      </div>
-    );
-  }
+  if (!currentCard) return null;
 
   const remaining = limitedCards.length;
 
