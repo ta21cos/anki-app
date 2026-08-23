@@ -14,7 +14,8 @@ import { CardViewer } from "@/components/card-viewer";
 import { RatingButtons } from "@/components/rating-buttons";
 import { CardEditButton } from "@/components/card-edit-button";
 import { AutoSpeakToggle } from "@/components/auto-speak-toggle";
-import { useAutoSpeak } from "@/lib/use-auto-speak";
+import { useCardAudio } from "@/lib/use-card-audio";
+import { CardAudioButtons } from "@/components/card-audio-buttons";
 import { ArrowLeft, CheckCircle2, Shuffle } from "lucide-react";
 
 function shuffleArray<T>(arr: T[]): T[] {
@@ -57,7 +58,7 @@ export function StudyPage() {
 
   const currentCard = orderedCards?.[0] ?? null;
 
-  useAutoSpeak(
+  const cardAudio = useCardAudio(
     currentCard && deck
       ? {
           id: currentCard.id,
@@ -170,6 +171,8 @@ export function StudyPage() {
         showAnswer={showAnswer}
         onShowAnswer={() => setShowAnswer(true)}
       />
+
+      <CardAudioButtons audio={cardAudio} isAnswerShown={showAnswer} />
 
       {showAnswer && (
         <>
