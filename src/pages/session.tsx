@@ -22,7 +22,8 @@ import { RatingButtons } from "@/components/rating-buttons";
 import { ListenReviewMode } from "@/components/listen-review-mode";
 import { AudioQuizPlayer } from "@/components/audio-quiz-player";
 import { AutoSpeakToggle } from "@/components/auto-speak-toggle";
-import { useAutoSpeak } from "@/lib/use-auto-speak";
+import { useCardAudio } from "@/lib/use-card-audio";
+import { CardAudioButtons } from "@/components/card-audio-buttons";
 import { useSettings } from "@/lib/settings";
 import {
   prepareAudioQuiz,
@@ -188,7 +189,7 @@ export function SessionPage() {
   const currentCard = limitedCards[0] ?? null;
   const isSessionFinished = sessionCardIds !== null && currentCard === null;
 
-  useAutoSpeak(
+  const cardAudio = useCardAudio(
     currentCard
       ? {
           id: currentCard.id,
@@ -806,6 +807,8 @@ export function SessionPage() {
         showAnswer={showAnswer}
         onShowAnswer={() => setShowAnswer(true)}
       />
+
+      <CardAudioButtons audio={cardAudio} isAnswerShown={showAnswer} />
 
       {showAnswer && (
         <>
